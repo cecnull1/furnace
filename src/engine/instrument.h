@@ -102,6 +102,7 @@ enum DivInstrumentType: unsigned short {
   DIV_INS_UPD1771C=65,
   DIV_INS_SID3=66,
   DIV_INS_KLATTSCH=67,
+  DIV_INS_CSE1=72,
   DIV_INS_MAX,
   DIV_INS_NULL
 };
@@ -1067,6 +1068,115 @@ struct DivInstrumentKlattsch {
     formantShift(0) {}
 };
 
+struct DivInstrumentCSE1 {
+  struct ADSR {
+    unsigned short ar, dr, sl, sr, rr;
+    unsigned short vp;
+    unsigned char adsrState;
+    unsigned int adsrTable;
+
+    ADSR(): ar(), dr(), sl(), sr(), rr(), vp(), adsrState(), adsrTable() {}
+  };
+
+  struct Operator {
+    unsigned short mi[6];
+
+    ADSR adsr;
+
+    unsigned short vfb;
+
+    unsigned char env_div_count;
+    unsigned char sample_div_count;
+
+    unsigned int phase;
+    unsigned int pitch;
+    unsigned short startP, endP;
+
+    unsigned int outTable;
+    unsigned int WaveTableTable;
+
+    unsigned char ml;
+    unsigned char dn;
+    unsigned char fixed;
+    unsigned char wave;
+    unsigned char rev;
+    unsigned char default_adsr_table;
+    unsigned char default_out_and_wt_table;
+    unsigned char ring;
+    unsigned char sync;
+
+    unsigned short duty;
+
+    unsigned char aloop;
+    unsigned char dloop;
+    unsigned char env_divider;
+    unsigned char sample_divider;
+
+    Operator():
+    mi(),
+    vfb(), env_div_count(), sample_div_count(),
+    phase(), pitch(), startP(), endP(), outTable(), WaveTableTable(),
+    ml(), dn(), fixed(), wave(), rev(), default_adsr_table(), default_out_and_wt_table(), ring(), sync(),
+    duty(), aloop(), dloop(), env_divider(), sample_divider() {}
+  } op[6];
+
+  struct Out {
+    unsigned short inLeft[6];
+    unsigned short inRight[6];
+    unsigned short outLeft;
+    unsigned short outRight;
+
+    ADSR adsr;
+    unsigned char env_div_count;
+    unsigned char env_div;
+
+    unsigned int pitch;
+
+    unsigned char negLeft[7];
+    unsigned char negRight[7];
+    unsigned char default_adsr_table;
+    unsigned char default_out_table;
+
+    unsigned int outLTable;
+    unsigned int outRTable;
+
+    Out():
+    inLeft(), inRight(), outLeft(), outRight(),
+    env_div_count(), env_div(), pitch(),
+    negLeft(), negRight(), default_adsr_table(), default_out_table(), outLTable(), outRTable() {}
+  } out;
+
+  struct special {
+    struct Filter {
+      unsigned short cutoff;
+      unsigned char resonance;
+      unsigned char types;
+      unsigned short outLeft;
+      unsigned short outRight;
+
+      Filter():
+      cutoff(0xFFFFu), resonance(0),
+      types(0),
+      outLeft(), outRight() {}
+    };
+
+    Filter filter[3];
+    unsigned short cutoffSweep[3];
+    unsigned int freqSweep[7];
+
+    struct LFO {
+      unsigned char wave;
+      unsigned char freq;
+      unsigned char depth;
+      unsigned short phase;
+
+      LFO(): wave(), freq(), depth(), phase() {}
+    } am, pm;
+
+    special(): filter(), cutoffSweep(), freqSweep() {}
+  };
+};
+
 struct DivInstrumentPOD {
   DivInstrumentType type;
   DivInstrumentFM fm;
@@ -1087,6 +1197,7 @@ struct DivInstrumentPOD {
   DivInstrumentSID2 sid2;
   DivInstrumentSID3 sid3;
   DivInstrumentKlattsch klattsch;
+  DivInstrumentCSE1 cse1;
 
   DivInstrumentPOD() :
     type(DIV_INS_FM) {

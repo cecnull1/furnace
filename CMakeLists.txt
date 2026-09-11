@@ -1334,7 +1334,10 @@ if (WITH_LOCALE)
   endif()
 endif()
 
-set(USED_SOURCES ${ENGINE_SOURCES} ${AUDIO_SOURCES} ${CLI_SOURCES} src/main.cpp)
+set(USED_SOURCES ${ENGINE_SOURCES} ${AUDIO_SOURCES} ${CLI_SOURCES} src/main.cpp
+        src/engine/platform/cse1.cpp
+        src/engine/platform/sound/cse1/cse1.h
+        src/engine/platform/sound/cse1/cse1.cpp)
 
 if (USE_BACKWARD)
   list(APPEND USED_SOURCES src/backtrace.cpp)
