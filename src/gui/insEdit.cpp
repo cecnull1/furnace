@@ -31,6 +31,7 @@
 #include <imgui.h>
 #include "plot_nolerp.h"
 #include "util.h"
+#include "initEdits/cse1/CSE_INV.h"
 
 #include "insEdit/insEditCommon.h"
 

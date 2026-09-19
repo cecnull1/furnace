@@ -102,7 +102,7 @@ enum DivInstrumentType: unsigned short {
   DIV_INS_UPD1771C=65,
   DIV_INS_SID3=66,
   DIV_INS_KLATTSCH=67,
-  DIV_INS_CSE1=72,
+  DIV_INS_CSE1=69,
   DIV_INS_MAX,
   DIV_INS_NULL
 };
@@ -1068,6 +1068,8 @@ struct DivInstrumentKlattsch {
     formantShift(0) {}
 };
 
+#define CSE1_CHANNEL_NUMBER 9
+#define CSE1_OPER_NUMBER 6
 struct DivInstrumentCSE1 {
   struct ADSR {
     unsigned short ar, dr, sl, sr, rr;
@@ -1079,7 +1081,7 @@ struct DivInstrumentCSE1 {
   };
 
   struct Operator {
-    unsigned short mi[6];
+    unsigned short mi[CSE1_OPER_NUMBER];
 
     ADSR adsr;
 
@@ -1118,11 +1120,11 @@ struct DivInstrumentCSE1 {
     phase(), pitch(), startP(), endP(), outTable(), WaveTableTable(),
     ml(), dn(), fixed(), wave(), rev(), default_adsr_table(), default_out_and_wt_table(), ring(), sync(),
     duty(), aloop(), dloop(), env_divider(), sample_divider() {}
-  } op[6];
+  } op[CSE1_OPER_NUMBER];
 
   struct Out {
-    unsigned short inLeft[6];
-    unsigned short inRight[6];
+    unsigned short inLeft[CSE1_OPER_NUMBER];
+    unsigned short inRight[CSE1_OPER_NUMBER];
     unsigned short outLeft;
     unsigned short outRight;
 
@@ -1132,8 +1134,8 @@ struct DivInstrumentCSE1 {
 
     unsigned int pitch;
 
-    unsigned char negLeft[7];
-    unsigned char negRight[7];
+    unsigned char negLeft[CSE1_OPER_NUMBER+1];
+    unsigned char negRight[CSE1_OPER_NUMBER+1];
     unsigned char default_adsr_table;
     unsigned char default_out_table;
 
@@ -1162,7 +1164,7 @@ struct DivInstrumentCSE1 {
 
     Filter filter[3];
     unsigned short cutoffSweep[3];
-    unsigned int freqSweep[7];
+    unsigned int freqSweep[CSE1_OPER_NUMBER+1];
 
     struct LFO {
       unsigned char wave;
@@ -1171,11 +1173,18 @@ struct DivInstrumentCSE1 {
       unsigned short phase;
 
       LFO(): wave(), freq(), depth(), phase() {}
-    } am, pm;
+    } lfo1, lfo2;
 
     special(): filter(), cutoffSweep(), freqSweep() {}
-  };
+  } special;
+
+  bool operator==(const DivInstrumentCSE1 &other) const;
+  bool operator!=(const DivInstrumentCSE1& other) const {
+    return !(*this==other);
+  }
 };
+#undef CSE1_CHANNEL_NUMBER
+#undef CSE1_OPER_NUMBER
 
 struct DivInstrumentPOD {
   DivInstrumentType type;
@@ -1314,6 +1323,7 @@ struct DivInstrument: DivInstrumentPOD {
   void writeFeatureS2(SafeWriter* w);
   void writeFeatureS3(SafeWriter* w);
   void writeFeatureKT(SafeWriter* w);
+  void writeFeatureSE(SafeWriter *w);
 
   void readFeatureNA(SafeReader& reader, short version);
   void readFeatureFM(SafeReader& reader, short version);
@@ -1341,6 +1351,7 @@ struct DivInstrument: DivInstrumentPOD {
   void readFeatureS2(SafeReader& reader, short version);
   void readFeatureS3(SafeReader& reader, short version);
   void readFeatureKT(SafeReader& reader, short version);
+  void readFeatureSE(SafeReader& reader, short version);
 
   DivDataErrors readInsDataOld(SafeReader& reader, short version);
   DivDataErrors readInsDataNew(SafeReader& reader, short version, bool fui, DivSong* song);

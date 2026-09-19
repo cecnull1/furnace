@@ -30,6 +30,7 @@
 #include <SDL.h>
 #include <fftw3.h>
 #include <stdint.h>
+
 #ifndef PRIu64
 #include <inttypes.h>
 #endif
@@ -393,6 +394,7 @@ enum FurnaceGUIColors {
   GUI_COLOR_INSTR_UPD1771C,
   GUI_COLOR_INSTR_SID3,
   GUI_COLOR_INSTR_KLATTSCH,
+  GUI_COLOR_INSTR_CSE1,
   GUI_COLOR_INSTR_UNKNOWN,
 
   GUI_COLOR_CHANNEL_BG,
@@ -3134,6 +3136,8 @@ class FurnaceGUI {
   void drawESFMAlgorithm(DivInstrumentESFM& esfm, const ImVec2& size);
   void drawFMEnv(unsigned char tl, unsigned char ar, unsigned char dr, unsigned char d2r, unsigned char rr, unsigned char sl, unsigned char sus, unsigned char egt, unsigned char algOrGlobalSus, float maxTl, float maxArDr, float maxRr, const ImVec2& size, unsigned short instType);
   void drawSID3Env(unsigned char tl, unsigned char ar, unsigned char dr, unsigned char d2r, unsigned char rr, unsigned char sl, unsigned char sus, unsigned char egt, unsigned char algOrGlobalSus, float maxTl, float maxArDr, float maxRr, const ImVec2& size, unsigned short instType);
+  void drawCSE1Env(uint16_t tl, uint16_t ar, uint16_t dr, uint16_t d2r, uint16_t rr, uint16_t sl, uint16_t sus, uint16_t egt, uint16_t
+    algOrGlobalSus, float maxTl, float maxArDr, float maxRr, const ImVec2 &size, unsigned short instType);
   void drawGBEnv(unsigned char vol, unsigned char len, unsigned char sLen, bool dir, const ImVec2& size);
   bool drawSysConf(int chan, int sysPos, DivSystem type, DivConfig& flags, unsigned short& systemChans, bool modifyOnChange, bool fromMenu=false);
   void kvsConfig(DivInstrument* ins, bool supportsKVS=true);
@@ -3146,6 +3150,7 @@ class FurnaceGUI {
   void renderFMPreviewOPZ(const DivInstrumentFM& params, int pos=0);
   void renderFMPreviewESFM(const DivInstrumentFM& params, const DivInstrumentESFM& esfmParams, int pos=0);
   void renderFMPreviewCSE1(const DivInstrumentCSE1& params, int pos=0);
+  void drawInsCSE1(DivInstrument *ins);
 
   void VerticalText(const char* fmt, ...);
   void VerticalText(float maxSize, bool centered, const char* fmt, ...);

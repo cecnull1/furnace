@@ -919,6 +919,13 @@ src/engine/platform/multipcm.cpp
 src/engine/platform/pcmdac.cpp
 src/engine/platform/dummy.cpp
 
+src/engine/platform/cse1.cpp
+src/engine/platform/cse1.h
+src/engine/platform/sound/cse1/cse1.hpp
+src/engine/platform/sound/cse1/cse1.cpp
+src/engine/platform/sound/cse1/utils.cpp
+src/engine/platform/sound/cse1/utils.h
+
 src/engine/export/abstract.cpp
 src/engine/export/amigaValidation.cpp
 src/engine/export/sapr.cpp
@@ -929,6 +936,8 @@ src/engine/export/grub.cpp
 
 src/engine/effect/abstract.cpp
 src/engine/effect/dummy.cpp
+        src/engine/platform/cse1_sync_utils.cpp
+        src/engine/platform/cse1_sync_utils.h
 )
 
 if (ORIG_NDS_CORE)
@@ -1153,6 +1162,9 @@ src/gui/waveEdit.cpp
 src/gui/volMeter.cpp
 src/gui/xyOsc.cpp
 src/gui/gui.cpp
+
+src/gui/initEdits/cse1/CSE_INV.cpp
+src/gui/initEdits/cse1/CSE_INV.h
 )
 
 if (NOT NO_INTRO)
@@ -1334,10 +1346,7 @@ if (WITH_LOCALE)
   endif()
 endif()
 
-set(USED_SOURCES ${ENGINE_SOURCES} ${AUDIO_SOURCES} ${CLI_SOURCES} src/main.cpp
-        src/engine/platform/cse1.cpp
-        src/engine/platform/sound/cse1/cse1.h
-        src/engine/platform/sound/cse1/cse1.cpp)
+set(USED_SOURCES ${ENGINE_SOURCES} ${AUDIO_SOURCES} ${CLI_SOURCES} src/main.cpp)
 
 if (USE_BACKWARD)
   list(APPEND USED_SOURCES src/backtrace.cpp)
