@@ -19,8 +19,11 @@ class DivPlatformCSE1 : public DivDispatch {
     unsigned char chans;
     CSE1_PACKED::CSE1 chip;
     CSE1_PACKED::WaveTable waveTable;
-    signed char *pcmMem;
     DivMemoryComposition memCompo;
+    CSE1_PACKED::CSE1_REG* pcmMem;
+    unsigned int* sampleOff;
+    bool* sampleLoaded;
+    size_t sampleMemLen;
     int sysIDCache;
 
     friend void putDispatchChip(void*,int);
@@ -49,6 +52,16 @@ public:
     int getRegisterPoolSize() override;
 
     int getRegisterPoolDepth() override;
+
+    const void* getSampleMem(int index) override;
+
+    size_t getSampleMemCapacity(int index) override;
+
+    size_t getSampleMemUsage(int index) override;
+
+    bool isSampleLoaded(int index, int sample) override;
+
+    const DivMemoryComposition *getMemCompo(int index) override;
 
     void reset() override;
     void tick(bool sysTick=true) override;

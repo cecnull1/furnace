@@ -40,8 +40,7 @@ namespace CSE1_PACKED {
 
         void clock(const CSE1_OPER_STATE *state, CSE1_ADSR &adsr);
 
-        CSE1_BIT_FIELD_MEMBER(ENV_DIVIDER_COUNT, CSE1_REG, 2, 6, ENV_STATE_FLAGS)
-        CSE1_BIT_FIELD_MEMBER(SAMPLE_DIVIDER_COUNT, CSE1_REG, 8, 8, ENV_STATE_FLAGS)
+        CSE1_BIT_FIELD_MEMBER(ENV_DIVIDER_COUNT, CSE1_REG, 2, 8, ENV_STATE_FLAGS)
     };
 
     struct CSE1_OPER_FLAGS_A {
@@ -62,8 +61,7 @@ namespace CSE1_PACKED {
         CSE1_REG SPEC;
         CSE1_BIT_FIELD_MEMBER(ALOOP, CSE1_REG, 0, 1, SPEC)
         CSE1_BIT_FIELD_MEMBER(DLOOP, CSE1_REG, 1, 1, SPEC)
-        CSE1_BIT_FIELD_MEMBER(ENV_DIVIDER, CSE1_REG, 2, 6, SPEC)
-        CSE1_BIT_FIELD_MEMBER(SAMPLE_DIVIDER, CSE1_REG, 8, 8, SPEC)
+        CSE1_BIT_FIELD_MEMBER(ENV_DIVIDER, CSE1_REG, 2, 8, SPEC)
     };
 
     struct CSE1_ADSR {
@@ -94,17 +92,11 @@ namespace CSE1_PACKED {
         CSE1_REG DUTY;
         CSE1_OPER_FLAGS_B FLAGS_B;
 
-        void clock(const CSE1_CHANNEL_REGISTERS* state);
+        void clock(const WaveTable &wave_table, const CSE1_CHANNEL_REGISTERS *state);
+
+        CSE1_REG spec_wavetable(const WaveTable &wave_table);
 
         CSE1_REG option_wavetable(const WaveTable &wave_table, CSE1_REG index);
-    };
-
-    struct CSE1_CHANNEL_ENV_STATE {
-        CSE1_REG ENV_VP;
-        CSE1_REG ENV_STATE_FLAGS;
-        CSE1_BIT_FIELD_MEMBER(ENV_ENUM, CSE1_REG, 0, 2, ENV_STATE_FLAGS)
-        CSE1_BIT_FIELD_MEMBER(ENV_DIVIDER_COUNT, CSE1_REG, 2, 6, ENV_STATE_FLAGS)
-        CSE1_BIT_FIELD_MEMBER(ENV_DIVIDER, CSE1_REG, 8, 6, ENV_STATE_FLAGS)
     };
 
     struct CSE1_CHANNEL_FLAGS_A {
@@ -117,9 +109,9 @@ namespace CSE1_PACKED {
 
     struct CSE1_OUT {
         CSE1_MIS IN_L;
-        CSE1_ADSR ADSR;
+        std::array<CSE1_REG, 5> dummy1;
         CSE1_REG OUT_L;
-        CSE1_OPER_ENV_STATE ENV_STATE;
+        std::array<CSE1_REG, 2> dummy2;
         CSE1_DOUBLE_REG OUT_TABLE_L;
         CSE1_MIS IN_R;
         CSE1_DOUBLE_REG PITCH;
@@ -210,7 +202,10 @@ namespace CSE1_PACKED {
     struct WaveTable {
         std::array<CSE1_REG, 65536> sine{};
         std::array<CSE1_REG, 65536> triangle{};
-        std::array<CSE1_REG, 65536> expw{};
+        std::array<CSE1_REG, 65536> old_js_expw{};
+        std::array<CSE1_REG, 65536> real_volume_line{};
+        CSE1_REG* default_volume_line;
+        CSE1_REG* memPCM;
         WaveTable();
     };
 

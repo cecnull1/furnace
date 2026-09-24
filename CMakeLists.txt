@@ -1163,8 +1163,8 @@ src/gui/volMeter.cpp
 src/gui/xyOsc.cpp
 src/gui/gui.cpp
 
-src/gui/initEdits/cse1/CSE_INV.cpp
-src/gui/initEdits/cse1/CSE_INV.h
+src/gui/insEdit/cse1/CSE_INV.cpp
+src/gui/insEdit/cse1/CSE_INV.h
 )
 
 if (NOT NO_INTRO)

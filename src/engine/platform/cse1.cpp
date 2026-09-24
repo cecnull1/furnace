@@ -5,12 +5,15 @@
 
 #define CHIP_FREQBASE (1<<27)
 
+#define MEMORY_SIZE (16*1024*1024/2)
+
 void DivPlatformCSE1::acquire(short** buf, size_t len) {
     for (int i = 0; i < chans; i++) {
         oscBuf[i]->begin(len);
     }
 
     for (size_t i = 0; i < len; i++) {
+        chip.clock(waveTable);
         int out[2] = {};
 
         for (unsigned char j = 0; j < chans; j++) {
@@ -37,8 +40,6 @@ void DivPlatformCSE1::acquire(short** buf, size_t len) {
         if (out[1] < -32768) out[1] = -32768;
         if (out[1] > 32767) out[1] = 32767;
         buf[1][i] = out[1];
-
-        chip.clock(waveTable);
     }
 
     for (int i = 0; i < chans; i++) {
@@ -96,11 +97,16 @@ int DivPlatformCSE1::dispatch(DivCommand c) {
         const auto& cse1 = ins->cse1;
         this->chan[c.chan].state.instrument = cse1;
         CSE1_REG_INS_SYNC::ins_to_reg(&cse1, &chip.CHANNELS.CHANNEL[c.chan]);
+        this->chip.CHANNELS.CHANNEL[c.chan].OUT.OUT_L = this->chip.CHANNELS.CHANNEL[c.chan].OUT.OUT_L*chan[c.chan].vol>>8;
+        this->chip.CHANNELS.CHANNEL[c.chan].OUT.OUT_R = this->chip.CHANNELS.CHANNEL[c.chan].OUT.OUT_R*chan[c.chan].vol>>8;
       }
       break;
     }
     case DIV_CMD_NOTE_OFF:
       chan[c.chan].active=false;
+      for (auto& op : chip.CHANNELS.CHANNEL[c.chan].OPS.OP)  {
+        op.ENV_STATE.SET_ENV_ENUM(3);
+      }
       break;
     case DIV_CMD_INSTRUMENT:
       chan[c.chan].ins=c.value;
@@ -143,6 +149,10 @@ int DivPlatformCSE1::dispatch(DivCommand c) {
     case DIV_CMD_GET_VOLMAX:
       return 255;
       break;
+    // case DIV_CMD_ENV_RELEASE:
+    //   for (auto& op : chip.CHANNELS.CHANNEL[c.chan].OPS.OP)  {
+    //     op.ENV_STATE.SET_ENV_ENUM(3);
+    //   }
     default:
       break;
   }
@@ -173,10 +183,101 @@ void DivPlatformCSE1::notifyInsChange(int ins) {
 
 }
 
-void DivPlatformCSE1::renderSamples(int sysID) {
-
+const DivMemoryComposition *DivPlatformCSE1::getMemCompo(int index) {
+  if (index!=0) return nullptr;
+  return &memCompo;
 }
 
+const void *DivPlatformCSE1::getSampleMem(int index) {
+  return index == 0 ? pcmMem : nullptr;
+}
+
+size_t DivPlatformCSE1::getSampleMemCapacity(int index) {
+  return index == 0 ? MEMORY_SIZE : 0;
+}
+
+size_t DivPlatformCSE1::getSampleMemUsage(int index) {
+  return index == 0 ? sampleMemLen : 0;
+}
+
+bool DivPlatformCSE1::isSampleLoaded(int index, int sample) {
+  if (index!=0) return false;
+  if (sample<0 || sample>32767) return false;
+  return sampleLoaded[sample];
+}
+
+void DivPlatformCSE1::renderSamples(int sysID) {
+    // 1. 清空 PCM 内存（按“字块”清空）
+    memset(pcmMem, 0, MEMORY_SIZE * sizeof(CSE1_PACKED::CSE1_REG));
+
+    // 2. 清空采样偏移和加载状态
+    memset(sampleOff, 0, 32768 * sizeof(unsigned int));
+    memset(sampleLoaded, 0, 32768 * sizeof(bool));
+
+    // 3. 初始化内存组成
+    memCompo = DivMemoryComposition();
+    memCompo.name = "Sample RAM";
+
+    // 4. 遍历采样
+    size_t memPos = 0;  // 单位：16-bit 字块
+    for (int i = 0; i < parent->song.sampleLen; i++) {
+        DivSample* s = parent->song.sample[i];
+
+        // 检查“渲染”
+        if (!s->renderOn[0][sysID]) {
+            sampleOff[i] = 0;
+            continue;
+        }
+
+        // 计算“字块数”
+        int length = s->getCurBufLen();  // 字节数
+        int wordLength = (length + 1) / 2;  // 向上取整到“字块”
+        auto* src = static_cast<unsigned char*>(s->getCurBuf());
+
+        // 检查“内存”
+        int actualWordLength = MIN((int)(getSampleMemCapacity(0) - memPos), wordLength);
+
+        if (actualWordLength > 0) {
+            // 写入 PCM 内存（按“字块”）
+          if (s->depth == DIV_SAMPLE_DEPTH_16BIT) {
+            // 16-bit 采样：偏移转换
+            for (int j = 0; j < actualWordLength; j++) {
+              int16_t sample = (src[j * 2 + 1] << 8) | src[j * 2];  // 有符号
+              pcmMem[memPos + j] = sample + 32768;  // 无符号
+            }
+          } else {
+            // 8-bit 采样：偏移转换
+            for (int j = 0; j < actualWordLength; j++) {
+              int8_t sample = src[j];  // 有符号
+              pcmMem[memPos + j] = (sample + 128) * 256;  // 无符号
+            }
+          }
+
+            // 更新“偏移”
+            sampleOff[i] = memPos;
+            memCompo.entries.push_back(DivMemoryEntry(
+                DIV_MEMORY_SAMPLE, "Sample", i, memPos, memPos + actualWordLength
+            ));
+            memPos += actualWordLength;
+        }
+
+        // 检查“内存溢出”
+        if (actualWordLength < wordLength) {
+            logW("out of CSE-1 PCM memory for sample %d!", i);
+            break;
+        }
+
+        sampleLoaded[i] = true;
+    }
+
+    // 5. 缓存“sysID”
+    sysIDCache = sysID;
+
+    // 6. 更新“内存组成”
+    sampleMemLen = memPos;
+    memCompo.used = sampleMemLen;
+    memCompo.capacity = getSampleMemCapacity(0);
+}
 void DivPlatformCSE1::reset() {
   chip.hard_reset();
   for (int i=0; i<chans; i++) {
@@ -195,12 +296,22 @@ unsigned int DivPlatformCSE1::getMaxFreq(int ch) {
 }
 
 void DivPlatformCSE1::setFlags(const DivConfig& flags) {
-  CHECK_CUSTOM_CLOCK else {
-    chipClock=192000;
-  }
+  chipClock=192000;
+  CHECK_CUSTOM_CLOCK
   rate=chipClock;
   for (int i = 0; i < chans; i++) {
     oscBuf[i]->setRate(rate);
+  }
+  switch (flags.getInt("defaultVolumeTableType",1)) {
+    case 0:
+      waveTable.default_volume_line = waveTable.old_js_expw.data();
+      break;
+    case 1:
+      waveTable.default_volume_line = waveTable.real_volume_line.data();
+      break;
+    default:
+      waveTable.default_volume_line = waveTable.old_js_expw.data();
+      break;
   }
   notifyPitchTable();
 }
@@ -220,8 +331,17 @@ int DivPlatformCSE1::init(DivEngine* p, int channels, int sugRate, const DivConf
   chipClock=192000;
   notifyPitchTable();
   chans=channels;
+
+  sampleOff=new unsigned int[32768];
+  sampleLoaded=new bool[32768];
+  pcmMem=new CSE1_PACKED::CSE1_REG[getSampleMemCapacity(0)];
+  sampleMemLen=0;
+
+  waveTable.memPCM=reinterpret_cast<CSE1_PACKED::CSE1_REG*>(pcmMem);
+
   setFlags(flags);
   reset();
+
   return channels;
 }
 
@@ -229,6 +349,9 @@ void DivPlatformCSE1::quit() {
   for (int i=0; i<chans; i++) {
     delete oscBuf[i];
   }
+  delete[] pcmMem;
+  waveTable.memPCM = nullptr;
+  samplePitchTable.destroy<Channel>(chan,CSE1_CHANNEL_NUMBER);
 }
 
 DivPlatformCSE1::~DivPlatformCSE1() = default;

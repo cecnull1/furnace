@@ -39,15 +39,9 @@ namespace CSE1_PACKED {
 
     void CSE1_OPS::clock(const WaveTable &wave_table, CSE1_CHANNEL_REGISTERS* State, CSE1_DOUBLE_SIG_REG &LeftBuf, CSE1_DOUBLE_SIG_REG &RightBuf) {
         for (size_t opi = 0; opi < OP.size(); opi++) {
-            OP[opi].clock(State);
-            CSE1_REG add_phase = 0;
-            for (size_t i = 0; i < OP.size(); i++) {
-                add_phase += (static_cast<uint32_t>(OP[i].VFB * wave_table.expw[OP[i].ENV_STATE.ENV_VP]) >> 16) * OP[opi].MIS.MI[i] >> 13;
-            }
-            add_phase += OP[opi].PHASE>>16;
-            OP[opi].VFB = OP[opi].option_wavetable(wave_table, add_phase&0xffff);
-            LeftBuf += ((OP[opi].VFB-0x8000)*State->OUT.IN_L.MI[opi]>>16)*wave_table.expw[OP[opi].ENV_STATE.ENV_VP]>>19;
-            RightBuf += ((OP[opi].VFB-0x8000)*State->OUT.IN_R.MI[opi]>>16)*wave_table.expw[OP[opi].ENV_STATE.ENV_VP]>>19;
+            OP[opi].clock(wave_table, State);
+            LeftBuf += (((OP[opi].VFB-0x8000)*State->OUT.IN_L.MI[opi]>>16)*wave_table.default_volume_line[OP[opi].ENV_STATE.ENV_VP]>>16)>>3;
+            RightBuf += (((OP[opi].VFB-0x8000)*State->OUT.IN_R.MI[opi]>>16)*wave_table.default_volume_line[OP[opi].ENV_STATE.ENV_VP]>>16)>>3;
         }
     }
 
@@ -56,13 +50,25 @@ namespace CSE1_PACKED {
     }
 
     static constexpr CSE1_REG BIT_EX(const bool v) noexcept {
-        return  ~(static_cast<CSE1_REG>(v)-1u);
+        return ~(static_cast<CSE1_REG>(v)-1u);
     }
 
-    void CSE1_OPER_STATE::clock(const CSE1_CHANNEL_REGISTERS *state) {
-        auto o_pitch = this->FLAGS_A.GET_FIXED() ? this->PITCH : state->OUT.PITCH;
-        PHASE += MULT_CALC(o_pitch + this->PITCH + (this->FLAGS_A.GET_OPN2_DETUNE()-4) * (o_pitch >> 10), this->FLAGS_A.GET_ML());
+    void CSE1_OPER_STATE::clock(const WaveTable &wave_table, const CSE1_CHANNEL_REGISTERS *state) {
+        if (FLAGS_A.GET_WAVE() < 6) {
+            const auto o_pitch = this->FLAGS_A.GET_FIXED() ? this->PITCH : state->OUT.PITCH;
+            PHASE += MULT_CALC(o_pitch + this->PITCH + (this->FLAGS_A.GET_OPN2_DETUNE()-4) * (o_pitch >> 10), this->FLAGS_A.GET_ML());
+        }
         this->ENV_STATE.clock(this, this->ADSR);
+
+        CSE1_REG add_phase = 0;
+        for (size_t i = 0; i < state->OPS.OP.size(); i++) {
+            auto& op = state->OPS.OP[i];
+            add_phase += (static_cast<uint32_t>(op.VFB * wave_table.default_volume_line[op.ENV_STATE.ENV_VP]) >> 16) * this->MIS.MI[i] >> 13;
+        }
+        add_phase += PHASE>>16;
+        if (FLAGS_A.GET_WAVE() < 6) {
+            VFB = option_wavetable(wave_table, add_phase&0xffff);
+        }
     }
 
     static uint16_t sat_add_u16(uint16_t a, uint16_t b) {
@@ -102,6 +108,18 @@ namespace CSE1_PACKED {
         this->SET_ENV_DIVIDER_COUNT(this->GET_ENV_DIVIDER_COUNT()-1);
     }
 
+    CSE1_REG CSE1_OPER_STATE::spec_wavetable(const WaveTable &wave_table) {
+        switch (this->FLAGS_A.GET_WAVE()) {
+            case OPER_ONESHOT_SAMPLE: {
+                return 0; // TODO: PCM
+            }
+            case OPER_LOOP_SAMPLE: {
+                return 0; // TODO: PCM
+            }
+            default: return 0;
+        }
+    }
+
     CSE1_REG CSE1_OPER_STATE::option_wavetable(const WaveTable &wave_table, const CSE1_REG index) {
         switch (this->FLAGS_A.GET_WAVE()) {
             case SINE: {
@@ -124,19 +142,13 @@ namespace CSE1_PACKED {
                 return BIT_EX(this->DUTY & 1);
             }
             case OPER_WAVETABLE_SAMPLE: {
-                return 0; // TODO: PCM
-            }
-            case OPER_ONESHOT_SAMPLE: {
-                return 0; // TODO: PCM
-            }
-            case OPER_LOOP_SAMPLE: {
-                return 0; // TODO: PCM
+                return wave_table.memPCM[index+START_PHASE];
             }
             default: return 0;
         }
     }
 
-    WaveTable::WaveTable() {
+    WaveTable::WaveTable(): default_volume_line(old_js_expw.data()), memPCM(nullptr) {
         for (size_t i = 0; i < sine.size(); i++) {
             sine[i] = static_cast<CSE1_REG>(std::sin(static_cast<long double>(i)*2*PI/65536.0L)*32767.0+32767.0)&0xffff;
         }
@@ -144,10 +156,16 @@ namespace CSE1_PACKED {
             triangle[i] = static_cast<CSE1_REG>(std::asin(std::sin(static_cast<long double>(i)*2*PI/65536.0L))/PI*2*32767.0+32767.0)&0xffff;
         }
 
-        for (size_t i = 0; i < expw.size(); i++) {
-            expw[i] = static_cast<CSE1_REG>(
-                (std::exp(static_cast<long double>(i) / 65535.0L * std::log(2.0L)) - 1.0L) * 65535.0L
+        for (size_t i = 0; i < old_js_expw.size(); i++) {
+            old_js_expw[i] = static_cast<CSE1_REG>(
+                (std::exp(i / 65535.0L * std::log(2.0L)) - 1.0L) * 65535.0L
             ) & 0xffff;
+        }
+
+        for (size_t i = 0; i < real_volume_line.size(); i++) {
+            long double tl = (65535.0L-i) / 16383.0L;
+            long double volume = std::pow(10.0L, -tl);
+            real_volume_line[i] = static_cast<CSE1_REG>(volume * 65535.0L) & 0xffff;
         }
     }
 
