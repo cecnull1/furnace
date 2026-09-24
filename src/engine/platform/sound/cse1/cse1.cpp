@@ -16,7 +16,7 @@ namespace CSE1_PACKED {
     }
 
     CSE1_DOUBLE_SIG_REG CSE1::CSE1_GET_SAMPLE(uint8_t ch) const {
-        int64_t ret = (static_cast<int64_t>(this->CHANNELS.OUTS_L[ch]) + static_cast<int64_t>(this->CHANNELS.OUTS_R[ch])) >> 1;
+        int64_t ret = (static_cast<int64_t>(this->CHANNELS.OUTS_L[ch]) + static_cast<int64_t>(this->CHANNELS.OUTS_R[ch]));
         if (ret < INT16_MIN) ret = INT16_MIN;
         if (ret > INT16_MAX) ret = INT16_MAX;
         return static_cast<int32_t>(ret);
