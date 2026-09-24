@@ -395,6 +395,7 @@ enum FurnaceGUIColors {
   GUI_COLOR_INSTR_SID3,
   GUI_COLOR_INSTR_KLATTSCH,
   GUI_COLOR_INSTR_CSE1,
+  GUI_COLOR_INSTR_SGU,
   GUI_COLOR_INSTR_UNKNOWN,
 
   GUI_COLOR_CHANNEL_BG,
@@ -712,6 +713,8 @@ enum FurnaceGUIFileDialogs {
   GUI_FILE_EXPORT_ROM,
   GUI_FILE_EXPORT_COMPILED_INS,
   GUI_FILE_EXPORT_COMPILED_INS_ONE,
+  GUI_FILE_EXPORT_OSC_VIDEO,
+  GUI_FILE_OSC_VIDEO_FFMPEG,
   GUI_FILE_EXPORT_COMPILED_SAMPLE,
   GUI_FILE_LOAD_MAIN_FONT,
   GUI_FILE_LOAD_HEAD_FONT,
@@ -772,7 +775,8 @@ enum FurnaceGUIExportTypes {
 #ifdef WITH_JSON
   GUI_EXPORT_JSON,
 #endif
-  GUI_EXPORT_DMF
+  GUI_EXPORT_DMF,
+  GUI_EXPORT_OSC_VIDEO
 };
 
 enum FurnaceGUIFMAlgs {
@@ -1810,6 +1814,7 @@ class FurnaceGUI {
   String workingDir, fileName, clipboard, warnString, errorString, lastError, curFileName, nextFile, sysSearchQuery, newSongQuery, paletteQuery, sampleBankSearchQuery;
   String workingDirSong, workingDirIns, workingDirWave, workingDirSample, workingDirAudioExport;
   String workingDirVGMExport, workingDirS98Export, workingDirROMExport;
+  String workingDirOscVideoExport;
   String workingDirFont, workingDirColors, workingDirKeybinds;
   String workingDirLayout, workingDirROM, workingDirMusic, workingDirTest;
   String workingDirConfig;
@@ -1840,7 +1845,7 @@ class FurnaceGUI {
   bool wantScrollListIns, wantScrollListWave, wantScrollListSample;
   bool displayPendingIns, pendingInsSingle, displayPendingRawSample, snesFilterHex, modTableHex, displayEditString;
   bool displayPendingSamples, replacePendingSample;
-  bool displayExportingROM, displayExportingCS;
+  bool displayExportingROM, displayExportingCS, displayExportingOscVideo;
   bool quitNoSave;
   bool changeCoarse;
   bool orderLock;
@@ -1882,6 +1887,7 @@ class FurnaceGUI {
   void* fmPreviewOPZ;
   void* fmPreviewOPZInterface;
   void* fmPreviewESFM;
+  void* fmPreviewSGU;
   void* fmPreviewCSE1;
   String* editString;
   SDL_Event userEvent;
@@ -2905,6 +2911,32 @@ class FurnaceGUI {
   float xyOscIntensity;
   float xyOscThickness;
 
+  // oscilloscope video export
+  struct OscVideoExportOptions {
+    int width=1280, height=720, fps=60;
+    int outputFormat=0; // 0=MKV 1=MP4
+    int targetSizeMB=0; // 0 means no limit, MP4 only
+    int sampleRate=44100, audioBitrate=192;
+    float textScale=1.0f;
+    float lineSize=1.0f;
+    int videoCRF=18;
+    String ffmpegPath;
+  } oscVideoExport;
+  bool oscVideoExporting;
+  bool oscVideoCombining;
+  bool oscVideoFfmpegFound;
+  bool oscVideoFfmpegChecked;
+  String oscVideoOutputFilterName, oscVideoOutputFilterExt;
+  std::thread* oscVideoThread;
+  std::atomic<int> oscVideoCurrentFrame;
+  std::atomic<bool> oscVideoAbort;
+  double oscVideoTotalTime; // song length in seconds, set before the export thread starts
+  FurnaceGUITexture* oscVideoPreviewTex;
+  int oscVideoPreviewTexW, oscVideoPreviewTexH;
+  std::vector<unsigned char> mainFontRawData; // raw TTF bytes from the main font
+  struct OscSoftFont* oscVideoSoftFont;
+  struct OscVideoPreviewState* oscVideoPreviewState;
+
   // register view
   int regViewColumns;
 
@@ -3128,9 +3160,17 @@ class FurnaceGUI {
 #endif
   void drawExportCommand(bool onWindow=false);
   void drawExportDMF(bool onWindow=false);
+  void drawExportOscVideo(bool onWindow=false);
+  void drawOscVideoProgress();
+  void runOscVideoExport(const String& path);
+  void detectOscVideoFfmpeg();
+  void clearOscVideoSoftFont();
 
   void drawSSGEnv(unsigned char type, const ImVec2& size);
   void drawWaveform(unsigned char type, bool opz, const ImVec2& size);
+  void drawWaveformSGU(unsigned char type, unsigned char wpar, const ImVec2& size, int sampleIdx=-1);
+  void drawSGUWpar(DivInstrument* ins, int opIdx, const DivInstrumentFM::Operator& op, bool prefixLabel=true);
+  void drawFMKsr(DivInstrument* ins, DivInstrumentFM::Operator& op, bool shortName=false);
   void drawWaveformSID3(unsigned char type, const ImVec2& size);
   void drawAlgorithm(unsigned char alg, FurnaceGUIFMAlgs algType, const ImVec2& size);
   void drawESFMAlgorithm(DivInstrumentESFM& esfm, const ImVec2& size);
@@ -3153,6 +3193,7 @@ class FurnaceGUI {
   void drawCSE1Env(uint16_t tl, uint16_t ar, uint16_t dr, uint16_t d2r, uint16_t rr, uint16_t sl, uint16_t sus,
     uint16_t egt, uint16_t algOrGlobalSus, float maxTl, float maxArDr, float maxRr, const ImVec2 &size,
     unsigned short instType);
+  void renderFMPreviewSGU(const DivInstrumentFM& params, const DivInstrumentESFM& esfmParams, const DivInstrumentSGU& sguParams, int sampleIdx, int pos=0);
 
   void VerticalText(const char* fmt, ...);
   void VerticalText(float maxSize, bool centered, const char* fmt, ...);
@@ -3535,6 +3576,7 @@ class FurnaceGUI {
 
   friend class SettingsCategory;
   friend class SettingEntry;
+  friend String oscVideoFormatLabel(DivEngine* e, FurnaceGUI* gui, int ch, const String& fmt);
 
   public:
     void editStr(String* which);

@@ -737,6 +737,7 @@ src/engine/platform/sound/qsound.c
 src/engine/platform/sound/swan.c
 
 src/engine/platform/sound/su.cpp
+src/engine/platform/sound/sgu.c
 
 src/engine/platform/sound/vic20sound.c
 
@@ -837,6 +838,7 @@ src/engine/sysDef.cpp
 src/engine/wavetable.cpp
 src/engine/waveSynth.cpp
 src/engine/wavOps.cpp
+src/engine/oscVideoRender.cpp
 src/engine/vgmOps.cpp
 src/engine/s98Ops.cpp
 
@@ -877,6 +879,7 @@ src/engine/platform/x1_010.cpp
 src/engine/platform/pokey.cpp
 src/engine/platform/lynx.cpp
 src/engine/platform/su.cpp
+src/engine/platform/sgu.cpp
 src/engine/platform/swan.cpp
 src/engine/platform/t6w28.cpp
 src/engine/platform/vb.cpp
@@ -1107,6 +1110,7 @@ src/gui/backupsManager.cpp
 src/gui/channels.cpp
 src/gui/oscTrigger.cpp
 src/gui/chanOsc.cpp
+src/gui/oscVideoExport.cpp
 src/gui/clock.cpp
 src/gui/commandPalette.cpp
 src/gui/compatFlags.cpp
