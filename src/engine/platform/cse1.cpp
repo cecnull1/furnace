@@ -97,8 +97,8 @@ int DivPlatformCSE1::dispatch(DivCommand c) {
         const auto& cse1 = ins->cse1;
         this->chan[c.chan].state.instrument = cse1;
         CSE1_REG_INS_SYNC::ins_to_reg(&cse1, &chip.CHANNELS.CHANNEL[c.chan]);
-        this->chip.CHANNELS.CHANNEL[c.chan].OUT.OUT_L = this->chip.CHANNELS.CHANNEL[c.chan].OUT.OUT_L*chan[c.chan].vol>>8;
-        this->chip.CHANNELS.CHANNEL[c.chan].OUT.OUT_R = this->chip.CHANNELS.CHANNEL[c.chan].OUT.OUT_R*chan[c.chan].vol>>8;
+        this->chip.CHANNELS.CHANNEL[c.chan].OUT.OUT_L = chan[c.chan].vol*0x0101;
+        this->chip.CHANNELS.CHANNEL[c.chan].OUT.OUT_R = chan[c.chan].vol*0x0101;
       }
       break;
     }
@@ -114,6 +114,8 @@ int DivPlatformCSE1::dispatch(DivCommand c) {
     case DIV_CMD_VOLUME:
       chan[c.chan].vol=c.value;
       if (chan[c.chan].vol>255) chan[c.chan].vol=255;
+      this->chip.CHANNELS.CHANNEL[c.chan].OUT.OUT_L = chan[c.chan].vol*0x0101;
+      this->chip.CHANNELS.CHANNEL[c.chan].OUT.OUT_R = chan[c.chan].vol*0x0101;
       break;
     case DIV_CMD_GET_VOLUME:
       return chan[c.chan].vol;
@@ -207,53 +209,44 @@ bool DivPlatformCSE1::isSampleLoaded(int index, int sample) {
 }
 
 void DivPlatformCSE1::renderSamples(int sysID) {
-    // 1. 清空 PCM 内存（按“字块”清空）
     memset(pcmMem, 0, MEMORY_SIZE * sizeof(CSE1_PACKED::CSE1_REG));
 
-    // 2. 清空采样偏移和加载状态
     memset(sampleOff, 0, 32768 * sizeof(unsigned int));
     memset(sampleLoaded, 0, 32768 * sizeof(bool));
 
-    // 3. 初始化内存组成
     memCompo = DivMemoryComposition();
     memCompo.name = "Sample RAM";
 
-    // 4. 遍历采样
-    size_t memPos = 0;  // 单位：16-bit 字块
+    size_t memPos = 0;
     for (int i = 0; i < parent->song.sampleLen; i++) {
         DivSample* s = parent->song.sample[i];
 
-        // 检查“渲染”
         if (!s->renderOn[0][sysID]) {
             sampleOff[i] = 0;
             continue;
         }
 
-        // 计算“字块数”
-        int length = s->getCurBufLen();  // 字节数
-        int wordLength = (length + 1) / 2;  // 向上取整到“字块”
+        int length = s->getCurBufLen();
+        int wordLength = (length + 1) / 2;
         auto* src = static_cast<unsigned char*>(s->getCurBuf());
 
-        // 检查“内存”
+        // 妫€鏌モ€滃唴瀛樷€?
         int actualWordLength = MIN((int)(getSampleMemCapacity(0) - memPos), wordLength);
 
         if (actualWordLength > 0) {
-            // 写入 PCM 内存（按“字块”）
           if (s->depth == DIV_SAMPLE_DEPTH_16BIT) {
-            // 16-bit 采样：偏移转换
             for (int j = 0; j < actualWordLength; j++) {
-              int16_t sample = (src[j * 2 + 1] << 8) | src[j * 2];  // 有符号
-              pcmMem[memPos + j] = sample + 32768;  // 无符号
+              int16_t sample = (src[j * 2 + 1] << 8) | src[j * 2];
+              pcmMem[memPos + j] = sample + 32768;
             }
           } else {
-            // 8-bit 采样：偏移转换
+            // 8-bit 閲囨牱锛氬亸绉昏浆鎹?
             for (int j = 0; j < actualWordLength; j++) {
-              int8_t sample = src[j];  // 有符号
-              pcmMem[memPos + j] = (sample + 128) * 256;  // 无符号
+              int8_t sample = src[j];
+              pcmMem[memPos + j] = (sample + 128) * 256;
             }
           }
 
-            // 更新“偏移”
             sampleOff[i] = memPos;
             memCompo.entries.push_back(DivMemoryEntry(
                 DIV_MEMORY_SAMPLE, "Sample", i, memPos, memPos + actualWordLength
@@ -261,7 +254,6 @@ void DivPlatformCSE1::renderSamples(int sysID) {
             memPos += actualWordLength;
         }
 
-        // 检查“内存溢出”
         if (actualWordLength < wordLength) {
             logW("out of CSE-1 PCM memory for sample %d!", i);
             break;
@@ -270,10 +262,8 @@ void DivPlatformCSE1::renderSamples(int sysID) {
         sampleLoaded[i] = true;
     }
 
-    // 5. 缓存“sysID”
     sysIDCache = sysID;
 
-    // 6. 更新“内存组成”
     sampleMemLen = memPos;
     memCompo.used = sampleMemLen;
     memCompo.capacity = getSampleMemCapacity(0);
@@ -309,10 +299,18 @@ void DivPlatformCSE1::setFlags(const DivConfig& flags) {
     case 1:
       waveTable.default_volume_line = waveTable.real_volume_line.data();
       break;
+    case 2:
+      waveTable.default_volume_line = waveTable.linear_volume_line.data();
+      break;
+    case 3:
+      waveTable.default_volume_line = waveTable.exp_volume_line.data();
+      break;
     default:
       waveTable.default_volume_line = waveTable.old_js_expw.data();
       break;
   }
+  waveTable.fastSpeed = flags.getInt("defaultVolumeTableSpeed",0x0100);;
+  waveTable.reset();
   notifyPitchTable();
 }
 
@@ -336,8 +334,9 @@ int DivPlatformCSE1::init(DivEngine* p, int channels, int sugRate, const DivConf
   sampleLoaded=new bool[32768];
   pcmMem=new CSE1_PACKED::CSE1_REG[getSampleMemCapacity(0)];
   sampleMemLen=0;
+  waveTable.reset();
 
-  waveTable.memPCM=reinterpret_cast<CSE1_PACKED::CSE1_REG*>(pcmMem);
+  waveTable.memPCM=pcmMem;
 
   setFlags(flags);
   reset();

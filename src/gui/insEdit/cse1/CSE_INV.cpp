@@ -16,6 +16,7 @@ constexpr auto gen_min = 0;
 constexpr auto gen_max = 0xffff;
 constexpr CSE1_PACKED::CSE1_DOUBLE_REG big_max = 0x7fffffffu;
 constexpr auto byteBit_max = 0xff;
+constexpr auto b12Bit_max = 0xfff;
 constexpr auto fourBit_max = 0x0f;
 constexpr auto threeBit_max = 0x07;
 constexpr auto sixBit_max = 0x3f;
@@ -24,9 +25,10 @@ constexpr auto twoBit_max = 0x03;
 void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
     auto& cse1 = ins -> cse1;
     BEGIN_TAB_ITEM("CSE-1") {
-        if (ImGui::BeginTable("Table", 4, ImGuiTableFlags_Borders)) {
+        if (ImGui::BeginTable("Table", 5, ImGuiTableFlags_Borders)) {
             ImGui::TableSetupColumn("OP");
             ImGui::TableSetupColumn("Control");
+            ImGui::TableSetupColumn("Pitch Control");
             ImGui::TableSetupColumn("ADSR");
             ImGui::TableSetupColumn("");
             ImGui::TableHeadersRow();
@@ -48,6 +50,23 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
                     ImGui::PopID();
                 }
 
+                const float halfWidth = ImGui::GetContentRegionAvail().x * 0.5f;
+                ImGui::SetNextItemWidth(halfWidth);
+                ImGui::SliderScalar("##IN_LEFT",
+                ImGuiDataType_U16,
+                &cse1.out.inLeft[i],
+                &gen_min, &gen_max,
+                fmt::format("OUTL{0}: %d", i + 1).c_str());
+
+                ImGui::SameLine();
+
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                ImGui::SliderScalar("##IN_RIGHT",
+                ImGuiDataType_U16,
+                &cse1.out.inRight[i],
+                &gen_min, &gen_max,
+                "OUTR: %d");
+
                 ImGui::TableNextColumn();
                 ImGui::NewLine();
 
@@ -58,24 +77,6 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
                 &cse1.op[i].phase,
                 &gen_min, &big_max,
                 "PHASE: %d"
-                );
-
-                ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::SliderScalar(
-                "##ML",
-                ImGuiDataType_U8,
-                &cse1.op[i].ml,
-                &gen_min, &fourBit_max,
-                "ML: %d"
-                );
-
-                ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::SliderScalar(
-                "##OPN2DT",
-                ImGuiDataType_U8,
-                &cse1.op[i].dn,
-                &gen_min, &threeBit_max,
-                "OPN2DT: %d"
                 );
 
                 ImGui::SetNextItemWidth(-FLT_MIN);
@@ -104,6 +105,55 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
                 &gen_min, &gen_max,
                 "DUTY: %d"
                 );
+
+                ImGui::TableNextColumn();
+                ImGui::NewLine();
+
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                ImGui::SliderScalar(
+                "##HPITCH",
+                ImGuiDataType_U16,
+                &cse1.op[i].hpitch,
+                &gen_min, &gen_max,
+                "HPITCH: %d"
+                );
+
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                ImGui::SliderScalar(
+                "##LPITCH",
+                ImGuiDataType_U16,
+                &cse1.op[i].lpitch,
+                &gen_min, &gen_max,
+                "LPITCH: %d"
+                );
+
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                ImGui::SliderScalar(
+                "##ML",
+                ImGuiDataType_U8,
+                &cse1.op[i].ml,
+                &gen_min, &fourBit_max,
+                "ML: %d"
+                );
+
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                ImGui::SliderScalar(
+                "##OPN2DT",
+                ImGuiDataType_U8,
+                &cse1.op[i].dn,
+                &gen_min, &threeBit_max,
+                "OPN2DT: %d"
+                );
+
+                ImGui::Checkbox("Fixed", &cse1.op[i].fixed);
+
+                ImGui::Checkbox("AM1", &cse1.op[i].am1);
+                ImGui::SameLine();
+                ImGui::Checkbox("AM2", &cse1.op[i].am2);
+
+                ImGui::Checkbox("FM1", &cse1.op[i].fm1);
+                ImGui::SameLine();
+                ImGui::Checkbox("FM2", &cse1.op[i].fm2);
 
                 ImGui::TableNextColumn();
                 ImGui::NewLine();
@@ -156,9 +206,9 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
                 ImGui::SetNextItemWidth(-FLT_MIN);
                 ImGui::SliderScalar(
                 "##EDIV",
-                ImGuiDataType_U8,
+                ImGuiDataType_U16,
                 &cse1.op[i].env_divider,
-                &gen_min, &byteBit_max,
+                &gen_min, &b12Bit_max,
                 "EDIV: %d"
                 );
 
@@ -187,30 +237,8 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             ImGui::Text("OUT");
+
             ImGui::PushID("OUT");
-
-            for (int j = 0; j < CSE1_OPER_NUMBER; j++) {
-                ImGui::PushID(j);
-                const float halfWidth = ImGui::GetContentRegionAvail().x * 0.5f;
-                ImGui::SetNextItemWidth(halfWidth);
-                ImGui::SliderScalar("##IN_LEFT",
-                ImGuiDataType_U16,
-                &cse1.out.inLeft[j],
-                &gen_min, &gen_max,
-                fmt::format("INL{0}: %d", j + 1).c_str());
-
-                ImGui::SameLine();
-
-                ImGui::SetNextItemWidth(halfWidth);
-                ImGui::SliderScalar("##IN_RIGHT",
-                ImGuiDataType_U16,
-                &cse1.out.inRight[j],
-                &gen_min, &gen_max,
-                fmt::format("INR{0}: %d", j + 1).c_str());
-                ImGui::PopID();
-            }
-
-            ImGui::PushID(CSE1_OPER_NUMBER+1);
             const float halfWidth = ImGui::GetContentRegionAvail().x * 0.5f;
             ImGui::SetNextItemWidth(halfWidth);
             ImGui::SliderScalar("##OUT_LEFT",
@@ -220,12 +248,72 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
 
             ImGui::SameLine();
 
-            ImGui::SetNextItemWidth(halfWidth);
+            ImGui::SetNextItemWidth(-FLT_MIN);
             ImGui::SliderScalar("##OUT_RIGHT",
                     ImGuiDataType_U16,
                     &cse1.out.outRight,
                     &gen_min, &gen_max, "OUTR: %d");
+
             ImGui::PopID();
+
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::Text("SPEC");
+            ImGui::PushID("SPEC");
+
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            ImGui::SliderScalar(
+            "##L1FREQ",
+            ImGuiDataType_U8,
+            &cse1.special.lfo1.freq,
+            &gen_min, &twoBit_max,
+            "L1FREQ: %d"
+            );
+
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            ImGui::SliderScalar(
+            "##L1DEPTH",
+            ImGuiDataType_U8,
+            &cse1.special.lfo1.depth,
+            &gen_min, &fourBit_max,
+            "L1DEPTH: %d"
+            );
+
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            ImGui::SliderScalar(
+            "##L1SHAPE",
+            ImGuiDataType_U8,
+            &cse1.special.lfo1.wave,
+            &gen_min, &fourBit_max,
+            "L1SHAPE: %d"
+            );
+
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            ImGui::SliderScalar(
+            "##L2FREQ",
+            ImGuiDataType_U8,
+            &cse1.special.lfo2.freq,
+            &gen_min, &twoBit_max,
+            "L2FREQ: %d"
+            );
+
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            ImGui::SliderScalar(
+            "##L2DEPTH",
+            ImGuiDataType_U8,
+            &cse1.special.lfo2.depth,
+            &gen_min, &fourBit_max,
+            "L2DEPTH: %d"
+            );
+
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            ImGui::SliderScalar(
+            "##L2SHAPE",
+            ImGuiDataType_U8,
+            &cse1.special.lfo2.wave,
+            &gen_min, &twoBit_max,
+            "L2SHAPE: %d"
+            );
 
             ImGui::PopID();
             ImGui::EndTable();

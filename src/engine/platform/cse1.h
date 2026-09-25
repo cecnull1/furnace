@@ -1,4 +1,5 @@
-#pragma once
+#ifndef CSE1_H_PLATFORM_CSE1
+#define CSE1_H_PLATFORM_CSE1
 
 #include "../dispatch.h"
 #include "sound/cse1/cse1.hpp"
@@ -69,3 +70,4 @@ public:
     void quit() override;
     ~DivPlatformCSE1() override;
 };
+#endif // CSE1_H_PLATFORM_CSE1

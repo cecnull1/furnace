@@ -1081,45 +1081,46 @@ struct DivInstrumentCSE1 {
   };
 
   struct Operator {
-    unsigned short mi[CSE1_OPER_NUMBER];
+    unsigned short mi[CSE1_OPER_NUMBER]{};
 
     ADSR adsr;
 
-    unsigned short vfb;
+    unsigned short vfb{};
 
-    unsigned char env_div_count;
-    unsigned char sample_div_count;
+    unsigned char env_div_count{};
 
-    unsigned int phase;
-    unsigned int pitch;
-    unsigned short startP, endP;
+    unsigned int phase{};
+    unsigned short hpitch{};
+    unsigned short lpitch{};
+    unsigned short startP{}, endP{};
 
-    unsigned int outTable;
-    unsigned int WaveTableTable;
+    unsigned int outTable{};
+    unsigned int WaveTableTable{};
 
-    unsigned char ml;
-    unsigned char dn;
-    unsigned char fixed;
-    unsigned char wave;
-    unsigned char rev;
-    unsigned char default_adsr_table;
-    unsigned char default_out_and_wt_table;
-    unsigned char ring;
-    unsigned char sync;
+    unsigned char ml{};
+    unsigned char dn{};
+    unsigned char wave{};
 
-    unsigned short duty;
 
-    unsigned char aloop;
-    unsigned char dloop;
-    unsigned char env_divider;
-    unsigned char sample_divider;
+    unsigned char ring{};
+    unsigned char sync{};
 
-    Operator():
-    mi(),
-    vfb(), env_div_count(), sample_div_count(),
-    phase(), pitch(), startP(), endP(), outTable(), WaveTableTable(),
-    ml(), dn(), fixed(), wave(), rev(), default_adsr_table(), default_out_and_wt_table(), ring(), sync(),
-    duty(), aloop(), dloop(), env_divider(), sample_divider() {}
+    unsigned short duty{};
+
+    bool default_adsr_table {};
+    bool default_out_and_wt_table{};
+    bool fixed{};
+    bool rev{};
+    bool am1{};
+    bool am2{};
+    bool fm1{};
+    bool fm2{};
+
+    unsigned char aloop{};
+    unsigned char dloop{};
+    unsigned short env_divider{};
+
+    Operator() = default;
   } op[CSE1_OPER_NUMBER];
 
   struct Out {
