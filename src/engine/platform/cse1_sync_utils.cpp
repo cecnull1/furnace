@@ -32,6 +32,9 @@ namespace CSE1_REG_INS_SYNC {
             op.FLAGS_A.SET_AM2(ins->op[a].am2);
             op.FLAGS_A.SET_FM1(ins->op[a].fm1);
             op.FLAGS_A.SET_FM2(ins->op[a].fm2);
+
+            op.START_PHASE = ins->op[a].startP;
+            op.END_PHASE = ins->op[a].endP;
         }
         for (size_t o = 0; o < CSE1_OPER_NUMBER; o++) {
             reg->OUT.IN_L.MI[o] = ins->out.inLeft[o];
@@ -78,6 +81,9 @@ namespace CSE1_REG_INS_SYNC {
             ins->op[a].am2 = op.FLAGS_A.GET_AM2();
             ins->op[a].fm1 = op.FLAGS_A.GET_FM1();
             ins->op[a].fm2 = op.FLAGS_A.GET_FM2();
+
+            ins->op[a].startP = op.START_PHASE;
+            ins->op[a].endP = op.END_PHASE;
         }
         for (size_t o = 0; o < CSE1_OPER_NUMBER; o++) {
             ins->out.inLeft[o] = reg->OUT.IN_L.MI[o];

@@ -4,6 +4,9 @@
 
 #include "cse1.hpp"
 
+#include <algorithm>
+#include <cmath>
+
 namespace CSE1_PACKED {
     constexpr long double PI = 3.1415926535897932384626433832795028841971L;
 
@@ -88,17 +91,33 @@ namespace CSE1_PACKED {
     }
 
     void CSE1_OPER_STATE::clock(const WaveTable &wave_table, const CSE1_CHANNEL_REGISTERS *state, const uint64_t ExtFM1AddPitch, const uint64_t ExtFM2AddPitch) noexcept {
-        if (FLAGS_A.GET_WAVE() < 6) {
-            const auto o_pitch = this->FLAGS_A.GET_FIXED() ? this->PITCH : state->OUT.PITCH;
-            const auto depth = o_pitch;
-            PHASE += MULT_CALC(
+        const auto o_pitch = this->FLAGS_A.GET_FIXED() ? this->PITCH : state->OUT.PITCH;
+        const auto pitch = MULT_CALC(
                 o_pitch +
                 this->PITCH +
                 (this->FLAGS_A.GET_OPN2_DETUNE()-4) * (o_pitch >> 10) +
-                (FLAGS_A.GET_FM1() ? ExtFM1AddPitch * depth >> 24: 0) +
-                (FLAGS_A.GET_FM2() ? ExtFM2AddPitch * depth >> 24: 0),
+                (FLAGS_A.GET_FM1() ? ExtFM1AddPitch * o_pitch >> 24: 0) +
+                (FLAGS_A.GET_FM2() ? ExtFM2AddPitch * o_pitch >> 24: 0),
                 this->FLAGS_A.GET_ML()
                 );
+        if (FLAGS_A.GET_WAVE() < 6) {
+            PHASE += pitch;
+        } else {
+            const auto in_pitch = pitch;
+            const auto next_phase = static_cast<uint64_t>(PHASE)+
+                static_cast<uint64_t>(in_pitch>>16)+
+                ((static_cast<uint64_t>(DUTY)+static_cast<uint64_t>(in_pitch&0xffff))>>16);
+
+            if (next_phase <= static_cast<uint64_t>(END_PHASE)) {
+                PHASE = next_phase;
+                DUTY += in_pitch & 0xffff;
+            } else if (this->FLAGS_A.GET_WAVE() == OPER_LOOP_SAMPLE) {
+                PHASE = next_phase - static_cast<uint64_t>(END_PHASE) + static_cast<uint64_t>(START_PHASE);
+                DUTY += in_pitch & 0xffff;
+            } else {
+                PHASE = END_PHASE;
+                DUTY = 0;
+            }
         }
         this->ENV_STATE.clock(this, this->ADSR);
 
@@ -108,8 +127,11 @@ namespace CSE1_PACKED {
             add_phase += (static_cast<uint32_t>(op.VFB * wave_table.default_volume_line[op.ENV_STATE.ENV_VP]) >> 16) * this->MIS.MI[i] >> 13;
         }
         add_phase += PHASE>>16;
+
         if (FLAGS_A.GET_WAVE() < 6) {
             VFB = option_wavetable(wave_table, add_phase&0xffff);
+        } else {
+            VFB = wave_table.memPCM[PHASE];
         }
     }
 
@@ -149,18 +171,6 @@ namespace CSE1_PACKED {
         }
         this->SET_ENV_DIVIDER_COUNT(this->GET_ENV_DIVIDER_COUNT()-1);
     }
-
-    // CSE1_REG CSE1_OPER_STATE::spec_wavetable(const WaveTable &wave_table) noexcept {
-    //     switch (this->FLAGS_A.GET_WAVE()) {
-    //         case OPER_ONESHOT_SAMPLE: {
-    //             return 0; // TODO: PCM
-    //         }
-    //         case OPER_LOOP_SAMPLE: {
-    //             return 0; // TODO: PCM
-    //         }
-    //         default: return 0;
-    //     }
-    // }
 
     constexpr CSE1_REG CSE1_LFO_CONFIG::option_wavetable(const uint8_t shape, const WaveTable &wave_table,
         const CSE1_REG index) noexcept {
@@ -222,12 +232,12 @@ namespace CSE1_PACKED {
         }
 
         for (size_t i = 0; i < tan_table.size(); i++) {
-            long double angle = static_cast<long double>(i) / 65535.0L * (PI / 2.0L);
-            long double t = std::tan(angle);
+            const long double angle = static_cast<long double>(i) / 65535.0L * (PI / 2.0L);
+            const long double t = std::tan(angle);
             if (t > 1.0e10L) {
                 tan_table[i] = 65535;
             } else {
-                long double normalized = t / (1.0L + t);
+                const long double normalized = t / (1.0L + t);
                 tan_table[i] = static_cast<CSE1_REG>(normalized * 65535.0L) & 0xffff;
             }
         }
@@ -236,24 +246,24 @@ namespace CSE1_PACKED {
     void WaveTable::reset() noexcept {
         for (size_t i = 0; i < old_js_expw.size(); i++) {
             old_js_expw[i] = fastSpeed != 0 ? static_cast<CSE1_REG>(
-                (std::exp(i/65535.0L * std::log(static_cast<long double>(fastSpeed)*fastSpeed+1.0L)) - 1.0L) * 65535.0L / (static_cast<long double>(fastSpeed)*fastSpeed)
+                (std::exp(i/65535.0L * std::log(static_cast<long double>(fastSpeed)+1.0L)) - 1.0L) * 65535.0L / static_cast<long double>(fastSpeed)
             ) & 0xffff : i;
         }
 
         for (size_t i = 0; i < real_volume_line.size(); i++) {
-            long double tl = (65535.0L-i) / 16383.0L*fastSpeed/16384.0L;
-            long double volume = std::pow(10.0L, -tl);
+            const long double tl = (65535.0L-i) / 16383.0L*fastSpeed/16384.0L;
+            const long double volume = std::pow(10.0L, -tl);
             real_volume_line[i] = static_cast<CSE1_REG>(volume * 65535.0L) & 0xffff;
         }
 
         for (size_t i = 0; i < exp_volume_line.size(); i++) {
-            long double tl = (65535.0L-i) / 8191.0L*fastSpeed/16384.0L;
-            long double volume = std::exp(-tl);
+            const long double tl = (65535.0L-i) / 8191.0L*fastSpeed/16384.0L;
+            const long double volume = std::exp(-tl);
             exp_volume_line[i] = static_cast<CSE1_REG>(volume * 65535.0L) & 0xffff;
         }
 
         for (size_t i = 0; i < linear_volume_line.size(); i++) {
-            linear_volume_line[i] = i;
+            linear_volume_line[i] = static_cast<CSE1_REG>(std::max(std::min(static_cast<long double>(fastSpeed)*(static_cast<long double>(i)-65535.0l)/256.0l+65535.0l, 65535.0l), .0l));
         }
     }
 

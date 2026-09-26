@@ -9,7 +9,13 @@ class DivPlatformCSE1 : public DivDispatch {
         struct {
             DivInstrumentCSE1 instrument;
         } state{};
-        Channel(bool linear=true):
+        int sample{};
+        CSE1_PACKED::CSE1_REG outL { 65535 };
+        CSE1_PACKED::CSE1_REG outR { 65535 };
+        CSE1_PACKED::CSE1_REG outL2 { 65535 };
+        CSE1_PACKED::CSE1_REG outR2 { 65535 };
+
+        explicit Channel(bool linear=true):
           SharedChannel(0,linear) {}
     };
     Channel chan[CSE1_CHANNEL_NUMBER];

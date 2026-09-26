@@ -3069,10 +3069,19 @@ bool FurnaceGUI::drawSysConf(int chan, int sysPos, DivSystem type, DivConfig& fl
         altered=true;
       }
 
+      bool quarterClock=flags.getBool("quarterClock",false);
+      if (ImGui::Checkbox(_("Quarter clock speed"),&quarterClock)) {
+        altered=true;
+      }
+      if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip(_("Default clock speed is 192kHz (192000Hz)."));
+      }
+
       if (altered) {
         e->lockSave([&]() {
           flags.set("defaultVolumeTableType",dvtt);
           flags.set("defaultVolumeTableSpeed", dvtspeed);
+          flags.set("quarterClock",(int)quarterClock);
         });
       }
       break;

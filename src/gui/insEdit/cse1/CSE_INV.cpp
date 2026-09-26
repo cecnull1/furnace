@@ -3,14 +3,8 @@
 //
 
 #include "CSE_INV.h"
-#include <imgui.h>
-
-#include "../../../gui/gui.h"
 #include "../../../engine/platform/sound/cse1/cse1.hpp"
-
-#define BEGIN_TAB_ITEM(s) if (ImGui::BeginTabItem(s))
-#define END_TAB_ITEM ImGui::EndTabItem();
-
+#include "../gui/insEdit/insEditCommon.h"
 
 constexpr auto gen_min = 0;
 constexpr auto gen_max = 0xffff;
@@ -21,10 +15,12 @@ constexpr auto fourBit_max = 0x0f;
 constexpr auto threeBit_max = 0x07;
 constexpr auto sixBit_max = 0x3f;
 constexpr auto twoBit_max = 0x03;
+constexpr auto wave_max = 0x04;
 
 void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
+    std::vector<FurnaceGUIMacroDesc> macroList;
     auto& cse1 = ins -> cse1;
-    BEGIN_TAB_ITEM("CSE-1") {
+    if (ImGui::BeginTabItem("CSE-1")) {
         if (ImGui::BeginTable("Table", 5, ImGuiTableFlags_Borders)) {
             ImGui::TableSetupColumn("OP");
             ImGui::TableSetupColumn("Control");
@@ -93,7 +89,7 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
                 "##WAVE",
                 ImGuiDataType_U8,
                 &cse1.op[i].wave,
-                &gen_min, &threeBit_max,
+                &gen_min, &wave_max,
                 "WAVE: %d"
                 );
 
@@ -318,7 +314,19 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
             ImGui::PopID();
             ImGui::EndTable();
         }
-        END_TAB_ITEM
+        ImGui::EndTabItem();
+    }
+
+    if (ImGui::BeginTabItem(_("Macros"))) {
+        macroList.push_back(FurnaceGUIMacroDesc(_("Volume"),&ins->std.volMacro,0,65535,160,uiColors[GUI_COLOR_MACRO_VOLUME]));
+        macroList.push_back(FurnaceGUIMacroDesc(_("Arpeggio"),&ins->std.arpMacro,-120,120,160,uiColors[GUI_COLOR_MACRO_PITCH],true,NULL,macroHoverNote,false,NULL,true,ins->std.arpMacro.val));
+        macroList.push_back(FurnaceGUIMacroDesc(_("Panning (Left)"),&ins->std.panLMacro,0,65535,160,uiColors[GUI_COLOR_MACRO_OTHER]));
+        macroList.push_back(FurnaceGUIMacroDesc(_("Panning (Right)"),&ins->std.panRMacro,0,65535,160,uiColors[GUI_COLOR_MACRO_OTHER],false,NULL,NULL,true));
+        macroList.push_back(FurnaceGUIMacroDesc(_("Pitch"),&ins->std.pitchMacro,-2048,2047,160,uiColors[GUI_COLOR_MACRO_PITCH],true,macroRelativeMode));
+        macroList.push_back(FurnaceGUIMacroDesc(_("Phase Reset"),&ins->std.phaseResetMacro,0,1,32,uiColors[GUI_COLOR_MACRO_OTHER],false,NULL,NULL,true));
+
+        drawMacros(macroList,macroEditStateMacros,ins);
+        ImGui::EndTabItem();
     }
 }
 

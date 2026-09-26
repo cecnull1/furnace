@@ -1068,7 +1068,6 @@ struct DivInstrumentKlattsch {
     formantShift(0) {}
 };
 
-#define CSE1_CHANNEL_NUMBER 9
 #define CSE1_OPER_NUMBER 6
 struct DivInstrumentCSE1 {
   struct ADSR {
@@ -1092,20 +1091,20 @@ struct DivInstrumentCSE1 {
     unsigned int phase{};
     unsigned short hpitch{};
     unsigned short lpitch{};
-    unsigned short startP{}, endP{};
+    unsigned int startP{}, endP{};
 
     unsigned int outTable{};
     unsigned int WaveTableTable{};
 
-    unsigned char ml{};
-    unsigned char dn{};
+    unsigned char ml{ 1 };
+    unsigned char dn{ 4 };
     unsigned char wave{};
 
 
     unsigned char ring{};
     unsigned char sync{};
 
-    unsigned short duty{};
+    unsigned short duty{ 32767};
 
     bool default_adsr_table {};
     bool default_out_and_wt_table{};
@@ -1184,7 +1183,6 @@ struct DivInstrumentCSE1 {
     return !(*this==other);
   }
 };
-#undef CSE1_CHANNEL_NUMBER
 #undef CSE1_OPER_NUMBER
 
 struct DivInstrumentPOD {
