@@ -411,7 +411,6 @@ void DivPlatformCSE1::renderSamples(int sysID) {
         const uint32_t actualWordLength = MIN((getSampleMemCapacity(0) - memPos), wordLength);
 
         if (actualWordLength > 0) {
-
           for (size_t j = 0; j < actualWordLength; j++) {
             const uint16_t sample = (src[j * 2 + 1] << 8) | src[j * 2];
             pcmMem[memPos + j] = sample + 32768;

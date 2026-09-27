@@ -107,7 +107,7 @@ namespace CSE1_PACKED {
         CSE1_REG DUTY;
         CSE1_OPER_FLAGS_B FLAGS_B;
 
-        void clock(const WaveTable &wave_table, const CSE1_CHANNEL_REGISTERS *state, CSE1_REG extVolume, uint64_t ExtFM1AddPitch, uint64_t
+        void clock(const WaveTable &wave_table, const CSE1_CHANNEL_REGISTERS *state, uint64_t ExtFM1AddPitch, uint64_t
             ExtFM2AddPitch) noexcept;
 
         CSE1_REG option_wavetable(const WaveTable &wave_table, CSE1_REG index) noexcept;

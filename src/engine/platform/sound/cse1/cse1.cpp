@@ -73,7 +73,7 @@ namespace CSE1_PACKED {
         for (size_t opi = 0; opi < OP.size(); opi++) {
             CSE1_OPER_STATE& op = OP[opi];
             const auto volume = !op.FLAGS_A.GET_NOT_DEFAULT_ADSR_TABLE() ? wave_table.default_volume_line[op.ENV_STATE.ENV_VP] : wave_table.memPCM[op.ADSR_WAVE_TABLE+op.ENV_STATE.ENV_VP];
-            op.clock(wave_table, State, volume, fm1pitch, fm2pitch);
+            op.clock(wave_table, State, fm1pitch, fm2pitch);
             op.PITCH+=State->SPEC.SWEEP_FREQS[opi].FREQ_SPEED;
             const auto ov = !op.FLAGS_A.GET_NOT_DEFAULT_OUT_AND_WAVE_TABLE_TABLE() ? op.VFB : wave_table.memPCM[op.OUT_TABLE+op.VFB];
             LeftBuf +=  (((ov-0x8000)*State->OUT.IN_L.MI[opi]>>16)*volume>>16)>>3;
@@ -93,7 +93,7 @@ namespace CSE1_PACKED {
         return  ~(static_cast<CSE1_DOUBLE_REG>(v)-1u);
     }
 
-    void CSE1_OPER_STATE::clock(const WaveTable &wave_table, const CSE1_CHANNEL_REGISTERS *state, const CSE1_REG extVolume, const uint64_t ExtFM1AddPitch, const uint64_t ExtFM2AddPitch) noexcept {
+    void CSE1_OPER_STATE::clock(const WaveTable &wave_table, const CSE1_CHANNEL_REGISTERS *state, const uint64_t ExtFM1AddPitch, const uint64_t ExtFM2AddPitch) noexcept {
         const auto o_pitch = this->FLAGS_A.GET_FIXED() ? this->PITCH : state->OUT.PITCH;
         const auto pitch = MULT_CALC(
                 o_pitch +
