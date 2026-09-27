@@ -12,11 +12,11 @@ struct CSE1_BIT_FIELD {
     using ValueType = T;
     static constexpr T Mask = (1 << Width) - 1;
 
-    static constexpr T Get(T reg) {
+    static constexpr T Get(T reg) noexcept {
         return (reg >> Shift) & Mask;
     }
 
-    static constexpr T Set(T reg, T value) {
+    static constexpr T Set(T reg, T value) noexcept {
         return (reg & ~(Mask << Shift)) | ((value & Mask) << Shift);
     }
 };

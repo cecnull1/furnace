@@ -1,4 +1,5 @@
-#pragma once
+#ifndef CSE1_H_PLATFORM_CSE1
+#define CSE1_H_PLATFORM_CSE1
 
 #include "../dispatch.h"
 #include "sound/cse1/cse1.hpp"
@@ -8,7 +9,16 @@ class DivPlatformCSE1 : public DivDispatch {
         struct {
             DivInstrumentCSE1 instrument;
         } state{};
-        Channel(bool linear=true):
+        int sample{};
+        CSE1_PACKED::CSE1_DOUBLE_REG outL { 65535 };
+        CSE1_PACKED::CSE1_DOUBLE_REG outR { 65535 };
+        CSE1_PACKED::CSE1_DOUBLE_REG outL2 { 65535 };
+        CSE1_PACKED::CSE1_DOUBLE_REG outR2 { 65535 };
+        CSE1_PACKED::CSE1_DOUBLE_REG m_outL { 65535 };
+        CSE1_PACKED::CSE1_DOUBLE_REG m_outR { 65535 };
+        CSE1_PACKED::CSE1_DOUBLE_REG m_outA { 65535 };
+
+        explicit Channel(bool linear=true):
           SharedChannel(0,linear) {}
     };
     Channel chan[CSE1_CHANNEL_NUMBER];
@@ -63,9 +73,12 @@ public:
 
     const DivMemoryComposition *getMemCompo(int index) override;
 
+    DivMacroInt* getChanMacroInt(int ch) override;
+
     void reset() override;
     void tick(bool sysTick=true) override;
     int init(DivEngine* parent, int channels, int sugRate, const DivConfig& flags) override;
     void quit() override;
     ~DivPlatformCSE1() override;
 };
+#endif // CSE1_H_PLATFORM_CSE1

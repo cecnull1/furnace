@@ -1069,7 +1069,6 @@ struct DivInstrumentKlattsch {
     formantShift(0) {}
 };
 
-#define CSE1_CHANNEL_NUMBER 9
 #define CSE1_OPER_NUMBER 6
 struct DivInstrumentCSE1 {
   struct ADSR {
@@ -1082,45 +1081,47 @@ struct DivInstrumentCSE1 {
   };
 
   struct Operator {
-    unsigned short mi[CSE1_OPER_NUMBER];
+    unsigned short mi[CSE1_OPER_NUMBER]{};
 
     ADSR adsr;
 
-    unsigned short vfb;
+    unsigned int phase{};
+    unsigned short hpitch{};
+    unsigned short lpitch{};
 
-    unsigned char env_div_count;
-    unsigned char sample_div_count;
 
-    unsigned int phase;
-    unsigned int pitch;
-    unsigned short startP, endP;
+    unsigned char ml{ 1 };
+    unsigned char dn{ 4 };
+    unsigned char wave{};
 
-    unsigned int outTable;
-    unsigned int WaveTableTable;
+    unsigned char ring{};
+    unsigned char sync{};
 
-    unsigned char ml;
-    unsigned char dn;
-    unsigned char fixed;
-    unsigned char wave;
-    unsigned char rev;
-    unsigned char default_adsr_table;
-    unsigned char default_out_and_wt_table;
-    unsigned char ring;
-    unsigned char sync;
+    unsigned short duty{ 32767 };
 
-    unsigned short duty;
+    bool default_adsr_table {};
+    bool default_out_and_wt_table{};
+    bool fixed{};
+    bool rev{};
+    bool am1{};
+    bool am2{};
+    bool fm1{};
+    bool fm2{};
 
-    unsigned char aloop;
-    unsigned char dloop;
-    unsigned char env_divider;
-    unsigned char sample_divider;
+    unsigned int startP{}, endP{};
+    struct SampleTables {
+      unsigned short sampleIndex;
+      unsigned short outTable;
+      unsigned short ADSRTable;
+      unsigned short WaveTableTable;
+    } sample_tables;
+    bool useSample;
 
-    Operator():
-    mi(),
-    vfb(), env_div_count(), sample_div_count(),
-    phase(), pitch(), startP(), endP(), outTable(), WaveTableTable(),
-    ml(), dn(), fixed(), wave(), rev(), default_adsr_table(), default_out_and_wt_table(), ring(), sync(),
-    duty(), aloop(), dloop(), env_divider(), sample_divider() {}
+    unsigned char aloop{};
+    unsigned char dloop{};
+    unsigned short env_divider{};
+
+    Operator() = default;
   } op[CSE1_OPER_NUMBER];
 
   struct Out {
@@ -1137,7 +1138,6 @@ struct DivInstrumentCSE1 {
 
     unsigned char negLeft[CSE1_OPER_NUMBER+1];
     unsigned char negRight[CSE1_OPER_NUMBER+1];
-    unsigned char default_adsr_table;
     unsigned char default_out_table;
 
     unsigned int outLTable;
@@ -1146,7 +1146,7 @@ struct DivInstrumentCSE1 {
     Out():
     inLeft(), inRight(), outLeft(), outRight(),
     env_div_count(), env_div(), pitch(),
-    negLeft(), negRight(), default_adsr_table(), default_out_table(), outLTable(), outRTable() {}
+    negLeft(), negRight(), default_out_table(), outLTable(), outRTable() {}
   } out;
 
   struct special {
@@ -1184,7 +1184,6 @@ struct DivInstrumentCSE1 {
     return !(*this==other);
   }
 };
-#undef CSE1_CHANNEL_NUMBER
 #undef CSE1_OPER_NUMBER
 
 struct DivInstrumentSGU {

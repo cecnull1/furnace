@@ -3,30 +3,30 @@
 //
 
 #include "CSE_INV.h"
-#include <imgui.h>
-
-#include "../../../gui/gui.h"
 #include "../../../engine/platform/sound/cse1/cse1.hpp"
-
-#define BEGIN_TAB_ITEM(s) if (ImGui::BeginTabItem(s))
-#define END_TAB_ITEM ImGui::EndTabItem();
-
+#include "../gui/insEdit/insEditCommon.h"
 
 constexpr auto gen_min = 0;
 constexpr auto gen_max = 0xffff;
 constexpr CSE1_PACKED::CSE1_DOUBLE_REG big_max = 0x7fffffffu;
 constexpr auto byteBit_max = 0xff;
+constexpr auto b12Bit_max = 0xfff;
 constexpr auto fourBit_max = 0x0f;
 constexpr auto threeBit_max = 0x07;
 constexpr auto sixBit_max = 0x3f;
 constexpr auto twoBit_max = 0x03;
+constexpr auto wave_max = 0x04;
+constexpr auto wave_sample_mode_min = 0x05;
+constexpr auto wave_sample_mode_max = 0x07;
 
 void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
+    std::vector<FurnaceGUIMacroDesc> macroList;
     auto& cse1 = ins -> cse1;
-    BEGIN_TAB_ITEM("CSE-1") {
-        if (ImGui::BeginTable("Table", 4, ImGuiTableFlags_Borders)) {
+    if (ImGui::BeginTabItem("CSE-1")) {
+        if (ImGui::BeginTable("Table", 5, ImGuiTableFlags_Borders)) {
             ImGui::TableSetupColumn("OP");
             ImGui::TableSetupColumn("Control");
+            ImGui::TableSetupColumn("Pitch Control");
             ImGui::TableSetupColumn("ADSR");
             ImGui::TableSetupColumn("");
             ImGui::TableHeadersRow();
@@ -48,16 +48,115 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
                     ImGui::PopID();
                 }
 
+                const float halfWidth = ImGui::GetContentRegionAvail().x * 0.5f;
+                ImGui::SetNextItemWidth(halfWidth);
+                ImGui::SliderScalar("##IN_LEFT",
+                ImGuiDataType_U16,
+                &cse1.out.inLeft[i],
+                &gen_min, &gen_max,
+                fmt::format("OUTL{0}: %d", i + 1).c_str());
+
+                ImGui::SameLine();
+
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                ImGui::SliderScalar("##IN_RIGHT",
+                ImGuiDataType_U16,
+                &cse1.out.inRight[i],
+                &gen_min, &gen_max,
+                "OUTR: %d");
+
                 ImGui::TableNextColumn();
                 ImGui::NewLine();
 
                 ImGui::SetNextItemWidth(-FLT_MIN);
                 ImGui::SliderScalar(
-                "##PHASE",
-                ImGuiDataType_S32,
-                &cse1.op[i].phase,
-                &gen_min, &big_max,
-                "PHASE: %d"
+                "##ESTA",
+                ImGuiDataType_U8,
+                &cse1.op[i].adsr.adsrState,
+                &gen_min, &twoBit_max,
+                "ESTA: %d"
+                );
+                ImGui::Checkbox("useSample", &cse1.op[i].useSample);
+
+                if (!cse1.op[i].useSample) {
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    ImGui::SliderScalar(
+                    "##PHASE",
+                    ImGuiDataType_S32,
+                    &cse1.op[i].phase,
+                    &gen_min, &big_max,
+                    "PHASE: %d"
+                    );
+
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    ImGui::SliderScalar(
+                    "##WAVE",
+                    ImGuiDataType_U8,
+                    &cse1.op[i].wave,
+                    &gen_min, &wave_max,
+                    "WAVE: %d"
+                    );
+
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    ImGui::SliderScalar(
+                    "##DUTY",
+                    ImGuiDataType_U16,
+                    &cse1.op[i].duty,
+                    &gen_min, &gen_max,
+                    "DUTY: %d"
+                    );
+                } else {
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    ImGui::SliderScalar(
+                    "##SMMODE",
+                    ImGuiDataType_U8,
+                    &cse1.op[i].wave,
+                    &wave_sample_mode_min, &wave_sample_mode_max,
+                    "SMMODE: %d"
+                    );
+
+                    String sName;
+                    if (cse1.op[i].sample_tables.sampleIndex >= e->song.sampleLen) {
+                        sName = _("none selected");
+                    } else {
+                        sName = e->song.sample[cse1.op[i].sample_tables.sampleIndex]->name;
+                    }
+
+                    ImGui::AlignTextToFramePadding();
+                    ImGui::Text(_("Sample"));
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                    if (ImGui::BeginCombo("##CSESample", sName.c_str())) {
+                        String id;
+                        for (int s = 0; s < e->song.sampleLen; s++) {
+                            id = fmt::sprintf("%d: %s", s, e->song.sample[s]->name);
+                            if (ImGui::Selectable(id.c_str(), cse1.op[i].sample_tables.sampleIndex == s)) {
+                                cse1.op[i].sample_tables.sampleIndex = s;
+                            }
+                        }
+                        ImGui::EndCombo();
+                    }
+                }
+
+                ImGui::TableNextColumn();
+                ImGui::NewLine();
+
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                ImGui::SliderScalar(
+                "##HPITCH",
+                ImGuiDataType_U16,
+                &cse1.op[i].hpitch,
+                &gen_min, &gen_max,
+                "HPITCH: %d"
+                );
+
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                ImGui::SliderScalar(
+                "##LPITCH",
+                ImGuiDataType_U16,
+                &cse1.op[i].lpitch,
+                &gen_min, &gen_max,
+                "LPITCH: %d"
                 );
 
                 ImGui::SetNextItemWidth(-FLT_MIN);
@@ -78,32 +177,15 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
                 "OPN2DT: %d"
                 );
 
-                ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::SliderScalar(
-                "##ESTA",
-                ImGuiDataType_U8,
-                &cse1.op[i].adsr.adsrState,
-                &gen_min, &twoBit_max,
-                "ESTA: %d"
-                );
+                ImGui::Checkbox("Fixed", &cse1.op[i].fixed);
 
-                ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::SliderScalar(
-                "##WAVE",
-                ImGuiDataType_U8,
-                &cse1.op[i].wave,
-                &gen_min, &threeBit_max,
-                "WAVE: %d"
-                );
+                ImGui::Checkbox("AM1", &cse1.op[i].am1);
+                ImGui::SameLine();
+                ImGui::Checkbox("AM2", &cse1.op[i].am2);
 
-                ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::SliderScalar(
-                "##DUTY",
-                ImGuiDataType_U16,
-                &cse1.op[i].duty,
-                &gen_min, &gen_max,
-                "DUTY: %d"
-                );
+                ImGui::Checkbox("FM1", &cse1.op[i].fm1);
+                ImGui::SameLine();
+                ImGui::Checkbox("FM2", &cse1.op[i].fm2);
 
                 ImGui::TableNextColumn();
                 ImGui::NewLine();
@@ -156,9 +238,9 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
                 ImGui::SetNextItemWidth(-FLT_MIN);
                 ImGui::SliderScalar(
                 "##EDIV",
-                ImGuiDataType_U8,
+                ImGuiDataType_U16,
                 &cse1.op[i].env_divider,
-                &gen_min, &byteBit_max,
+                &gen_min, &b12Bit_max,
                 "EDIV: %d"
                 );
 
@@ -187,30 +269,8 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             ImGui::Text("OUT");
+
             ImGui::PushID("OUT");
-
-            for (int j = 0; j < CSE1_OPER_NUMBER; j++) {
-                ImGui::PushID(j);
-                const float halfWidth = ImGui::GetContentRegionAvail().x * 0.5f;
-                ImGui::SetNextItemWidth(halfWidth);
-                ImGui::SliderScalar("##IN_LEFT",
-                ImGuiDataType_U16,
-                &cse1.out.inLeft[j],
-                &gen_min, &gen_max,
-                fmt::format("INL{0}: %d", j + 1).c_str());
-
-                ImGui::SameLine();
-
-                ImGui::SetNextItemWidth(halfWidth);
-                ImGui::SliderScalar("##IN_RIGHT",
-                ImGuiDataType_U16,
-                &cse1.out.inRight[j],
-                &gen_min, &gen_max,
-                fmt::format("INR{0}: %d", j + 1).c_str());
-                ImGui::PopID();
-            }
-
-            ImGui::PushID(CSE1_OPER_NUMBER+1);
             const float halfWidth = ImGui::GetContentRegionAvail().x * 0.5f;
             ImGui::SetNextItemWidth(halfWidth);
             ImGui::SliderScalar("##OUT_LEFT",
@@ -220,17 +280,92 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
 
             ImGui::SameLine();
 
-            ImGui::SetNextItemWidth(halfWidth);
+            ImGui::SetNextItemWidth(-FLT_MIN);
             ImGui::SliderScalar("##OUT_RIGHT",
                     ImGuiDataType_U16,
                     &cse1.out.outRight,
                     &gen_min, &gen_max, "OUTR: %d");
+
             ImGui::PopID();
+
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::Text("SPEC");
+            ImGui::PushID("SPEC");
+
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            ImGui::SliderScalar(
+            "##L1FREQ",
+            ImGuiDataType_U8,
+            &cse1.special.lfo1.freq,
+            &gen_min, &twoBit_max,
+            "L1FREQ: %d"
+            );
+
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            ImGui::SliderScalar(
+            "##L1DEPTH",
+            ImGuiDataType_U8,
+            &cse1.special.lfo1.depth,
+            &gen_min, &fourBit_max,
+            "L1DEPTH: %d"
+            );
+
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            ImGui::SliderScalar(
+            "##L1SHAPE",
+            ImGuiDataType_U8,
+            &cse1.special.lfo1.wave,
+            &gen_min, &fourBit_max,
+            "L1SHAPE: %d"
+            );
+
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            ImGui::SliderScalar(
+            "##L2FREQ",
+            ImGuiDataType_U8,
+            &cse1.special.lfo2.freq,
+            &gen_min, &twoBit_max,
+            "L2FREQ: %d"
+            );
+
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            ImGui::SliderScalar(
+            "##L2DEPTH",
+            ImGuiDataType_U8,
+            &cse1.special.lfo2.depth,
+            &gen_min, &fourBit_max,
+            "L2DEPTH: %d"
+            );
+
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            ImGui::SliderScalar(
+            "##L2SHAPE",
+            ImGuiDataType_U8,
+            &cse1.special.lfo2.wave,
+            &gen_min, &twoBit_max,
+            "L2SHAPE: %d"
+            );
 
             ImGui::PopID();
             ImGui::EndTable();
         }
-        END_TAB_ITEM
+        ImGui::EndTabItem();
+    }
+
+    if (ImGui::BeginTabItem(_("Macros"))) {
+        macroList.push_back(FurnaceGUIMacroDesc(_("Volume"),&ins->std.volMacro,0,65535,160,uiColors[GUI_COLOR_MACRO_VOLUME]));
+        macroList.push_back(FurnaceGUIMacroDesc(_("Arpeggio"),&ins->std.arpMacro,-120,120,160,uiColors[GUI_COLOR_MACRO_PITCH],true,NULL,macroHoverNote,false,NULL,true,ins->std.arpMacro.val));
+        macroList.push_back(FurnaceGUIMacroDesc(_("Panning (Left)"),&ins->std.panLMacro,0,65535,160,uiColors[GUI_COLOR_MACRO_OTHER]));
+        macroList.push_back(FurnaceGUIMacroDesc(_("Panning (Right)"),&ins->std.panRMacro,0,65535,160,uiColors[GUI_COLOR_MACRO_OTHER],false,NULL,NULL,false));
+        macroList.push_back(FurnaceGUIMacroDesc(_("Pitch"),&ins->std.pitchMacro,-2048,2047,160,uiColors[GUI_COLOR_MACRO_PITCH],true,macroRelativeMode));
+        macroList.push_back(FurnaceGUIMacroDesc(_("Phase Reset"),&ins->std.phaseResetMacro,0,1,32,uiColors[GUI_COLOR_MACRO_OTHER],false,NULL,NULL,true));
+
+        drawMacros(macroList,macroEditStateMacros,ins);
+        ImGui::EndTabItem();
+    }
+
+    for (int i = 0; i < CSE1_OPER_NUMBER; i++) {
     }
 }
 
