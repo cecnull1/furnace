@@ -1760,10 +1760,14 @@ void DivInstrument::writeFeatureKT(SafeWriter* w) {
 
 void DivInstrument::writeFeatureSE(SafeWriter* w) {
   FEATURE_BEGIN("SE");
-  auto& cse1 = this->cse1;
+  const auto& cse1 = this->cse1;
   auto bin = CSE1_PACKED::CSE1_CHANNEL_REGISTERS();
   CSE1_REG_INS_SYNC::ins_to_reg(&cse1, &bin);
   w->write(&bin, sizeof(CSE1_PACKED::CSE1_CHANNEL_REGISTERS));
+  for (const auto & i : cse1.op) {
+    w->write(&i.sample_tables, sizeof(DivInstrumentCSE1::Operator::sample_tables));
+    w->writeC(i.useSample);
+  }
   FEATURE_END;
 }
 
@@ -3441,6 +3445,10 @@ void DivInstrument::readFeatureSE(SafeReader& reader, short version) {
   auto bin = CSE1_PACKED::CSE1_CHANNEL_REGISTERS();
   reader.read(&bin, sizeof(CSE1_PACKED::CSE1_CHANNEL_REGISTERS));
   CSE1_REG_INS_SYNC::reg_to_ins(&bin, &cse1);
+  for (auto & i : cse1.op) {
+    reader.read(&i.sample_tables, sizeof(DivInstrumentCSE1::Operator::sample_tables));
+    i.useSample = reader.readC();
+  }
   READ_FEAT_END;
 }
 

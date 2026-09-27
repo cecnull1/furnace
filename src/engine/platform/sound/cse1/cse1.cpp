@@ -71,10 +71,13 @@ namespace CSE1_PACKED {
                     *State->SPEC.LFO_CONFIG.GET_DEPTH2());
 
         for (size_t opi = 0; opi < OP.size(); opi++) {
-            OP[opi].clock(wave_table, State, fm1pitch, fm2pitch);
-            OP[opi].PITCH+=State->SPEC.SWEEP_FREQS[opi].FREQ_SPEED;
-            LeftBuf +=  (((OP[opi].VFB-0x8000)*State->OUT.IN_L.MI[opi]>>16)*wave_table.default_volume_line[OP[opi].ENV_STATE.ENV_VP]>>16)>>3;
-            RightBuf += (((OP[opi].VFB-0x8000)*State->OUT.IN_R.MI[opi]>>16)*wave_table.default_volume_line[OP[opi].ENV_STATE.ENV_VP]>>16)>>3;
+            CSE1_OPER_STATE& op = OP[opi];
+            const auto volume = !op.FLAGS_A.GET_NOT_DEFAULT_ADSR_TABLE() ? wave_table.default_volume_line[op.ENV_STATE.ENV_VP] : wave_table.memPCM[op.ADSR_WAVE_TABLE+op.ENV_STATE.ENV_VP];
+            op.clock(wave_table, State, volume, fm1pitch, fm2pitch);
+            op.PITCH+=State->SPEC.SWEEP_FREQS[opi].FREQ_SPEED;
+            const auto ov = !op.FLAGS_A.GET_NOT_DEFAULT_OUT_AND_WAVE_TABLE_TABLE() ? op.VFB : wave_table.memPCM[op.OUT_TABLE+op.VFB];
+            LeftBuf +=  (((ov-0x8000)*State->OUT.IN_L.MI[opi]>>16)*volume>>16)>>3;
+            RightBuf += (((ov-0x8000)*State->OUT.IN_R.MI[opi]>>16)*volume>>16)>>3;
         }
     }
 
@@ -90,7 +93,7 @@ namespace CSE1_PACKED {
         return  ~(static_cast<CSE1_DOUBLE_REG>(v)-1u);
     }
 
-    void CSE1_OPER_STATE::clock(const WaveTable &wave_table, const CSE1_CHANNEL_REGISTERS *state, const uint64_t ExtFM1AddPitch, const uint64_t ExtFM2AddPitch) noexcept {
+    void CSE1_OPER_STATE::clock(const WaveTable &wave_table, const CSE1_CHANNEL_REGISTERS *state, const CSE1_REG extVolume, const uint64_t ExtFM1AddPitch, const uint64_t ExtFM2AddPitch) noexcept {
         const auto o_pitch = this->FLAGS_A.GET_FIXED() ? this->PITCH : state->OUT.PITCH;
         const auto pitch = MULT_CALC(
                 o_pitch +
@@ -108,11 +111,11 @@ namespace CSE1_PACKED {
                 static_cast<uint64_t>(in_pitch>>16)+
                 ((static_cast<uint64_t>(DUTY)+static_cast<uint64_t>(in_pitch&0xffff))>>16);
 
-            if (next_phase <= static_cast<uint64_t>(END_PHASE)) {
+            if (next_phase < static_cast<uint64_t>(END_PHASE)+1) {
                 PHASE = next_phase;
                 DUTY += in_pitch & 0xffff;
             } else if (this->FLAGS_A.GET_WAVE() == OPER_LOOP_SAMPLE) {
-                PHASE = next_phase - static_cast<uint64_t>(END_PHASE) + static_cast<uint64_t>(START_PHASE);
+                PHASE = next_phase - static_cast<uint64_t>(END_PHASE) + static_cast<uint64_t>(START_PHASE) - 1;
                 DUTY += in_pitch & 0xffff;
             } else {
                 PHASE = END_PHASE;
@@ -124,23 +127,26 @@ namespace CSE1_PACKED {
         CSE1_REG add_phase = 0;
         for (size_t i = 0; i < state->OPS.OP.size(); i++) {
             auto& op = state->OPS.OP[i];
-            add_phase += (static_cast<uint32_t>(op.VFB * wave_table.default_volume_line[op.ENV_STATE.ENV_VP]) >> 16) * this->MIS.MI[i] >> 13;
+            add_phase += (static_cast<uint32_t>(op.VFB * (
+                !op.FLAGS_A.GET_NOT_DEFAULT_ADSR_TABLE() ? wave_table.default_volume_line[op.ENV_STATE.ENV_VP] : wave_table.memPCM[op.ADSR_WAVE_TABLE+op.ENV_STATE.ENV_VP]
+                )) >> 16) * this->MIS.MI[i] >> 13;
         }
         add_phase += PHASE>>16;
 
         if (FLAGS_A.GET_WAVE() < 6) {
-            VFB = option_wavetable(wave_table, add_phase&0xffff);
+            const auto wv = option_wavetable(wave_table, add_phase&0xffff);
+            VFB = !FLAGS_A.GET_NOT_DEFAULT_OUT_AND_WAVE_TABLE_TABLE() ? wv : wave_table.memPCM[WAVE_TABLE_TABLE+wv];
         } else {
             VFB = wave_table.memPCM[PHASE];
         }
     }
 
-    static uint16_t sat_add_u16(uint16_t a, uint16_t b) noexcept {
-        uint32_t sum = static_cast<uint32_t>(a) + static_cast<uint32_t>(b);
+    static uint16_t sat_add_u16(const uint16_t a, const uint16_t b) noexcept {
+        const uint32_t sum = static_cast<uint32_t>(a) + static_cast<uint32_t>(b);
         return sum > 0xFFFF ? 0xFFFF : static_cast<uint16_t>(sum);
     }
 
-    static uint16_t sat_sub_u16(uint16_t a, uint16_t b) noexcept {
+    static uint16_t sat_sub_u16(const uint16_t a, const uint16_t b) noexcept {
         return a < b ? 0 : a - b;
     }
 

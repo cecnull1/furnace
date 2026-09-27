@@ -66,8 +66,8 @@ namespace CSE1_PACKED {
         CSE1_BIT_FIELD_MEMBER(FIXED, CSE1_REG, 7, 1, SPEC)
         CSE1_BIT_FIELD_MEMBER(WAVE, CSE1_REG, 8, 3, SPEC)
         CSE1_BIT_FIELD_MEMBER(REV, CSE1_REG, 11, 1, SPEC)
-        CSE1_BIT_FIELD_MEMBER(DEFAULT_ADSR_TABLE, CSE1_REG, 12, 1, SPEC)
-        CSE1_BIT_FIELD_MEMBER(DEFAULT_OUT_AND_WAVE_TABLE_TABLE, CSE1_REG, 13, 1, SPEC)
+        CSE1_BIT_FIELD_MEMBER(NOT_DEFAULT_ADSR_TABLE, CSE1_REG, 12, 1, SPEC)
+        CSE1_BIT_FIELD_MEMBER(NOT_DEFAULT_OUT_AND_WAVE_TABLE_TABLE, CSE1_REG, 13, 1, SPEC)
         CSE1_BIT_FIELD_MEMBER(RING, CSE1_REG, 14, 1, SPEC)
         CSE1_BIT_FIELD_MEMBER(SYNC, CSE1_REG, 15, 1, SPEC)
     };
@@ -107,7 +107,8 @@ namespace CSE1_PACKED {
         CSE1_REG DUTY;
         CSE1_OPER_FLAGS_B FLAGS_B;
 
-        void clock(const WaveTable &wave_table, const CSE1_CHANNEL_REGISTERS *state, uint64_t ExtFM1AddPitch, uint64_t ExtFM2AddPitch) noexcept;
+        void clock(const WaveTable &wave_table, const CSE1_CHANNEL_REGISTERS *state, CSE1_REG extVolume, uint64_t ExtFM1AddPitch, uint64_t
+            ExtFM2AddPitch) noexcept;
 
         CSE1_REG option_wavetable(const WaveTable &wave_table, CSE1_REG index) noexcept;
     };

@@ -10,10 +10,13 @@ class DivPlatformCSE1 : public DivDispatch {
             DivInstrumentCSE1 instrument;
         } state{};
         int sample{};
-        CSE1_PACKED::CSE1_REG outL { 65535 };
-        CSE1_PACKED::CSE1_REG outR { 65535 };
-        CSE1_PACKED::CSE1_REG outL2 { 65535 };
-        CSE1_PACKED::CSE1_REG outR2 { 65535 };
+        CSE1_PACKED::CSE1_DOUBLE_REG outL { 65535 };
+        CSE1_PACKED::CSE1_DOUBLE_REG outR { 65535 };
+        CSE1_PACKED::CSE1_DOUBLE_REG outL2 { 65535 };
+        CSE1_PACKED::CSE1_DOUBLE_REG outR2 { 65535 };
+        CSE1_PACKED::CSE1_DOUBLE_REG m_outL { 65535 };
+        CSE1_PACKED::CSE1_DOUBLE_REG m_outR { 65535 };
+        CSE1_PACKED::CSE1_DOUBLE_REG m_outA { 65535 };
 
         explicit Channel(bool linear=true):
           SharedChannel(0,linear) {}
@@ -69,6 +72,8 @@ public:
     bool isSampleLoaded(int index, int sample) override;
 
     const DivMemoryComposition *getMemCompo(int index) override;
+
+    DivMacroInt* getChanMacroInt(int ch) override;
 
     void reset() override;
     void tick(bool sysTick=true) override;

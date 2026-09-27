@@ -1084,27 +1084,19 @@ struct DivInstrumentCSE1 {
 
     ADSR adsr;
 
-    unsigned short vfb{};
-
-    unsigned char env_div_count{};
-
     unsigned int phase{};
     unsigned short hpitch{};
     unsigned short lpitch{};
-    unsigned int startP{}, endP{};
 
-    unsigned int outTable{};
-    unsigned int WaveTableTable{};
 
     unsigned char ml{ 1 };
     unsigned char dn{ 4 };
     unsigned char wave{};
 
-
     unsigned char ring{};
     unsigned char sync{};
 
-    unsigned short duty{ 32767};
+    unsigned short duty{ 32767 };
 
     bool default_adsr_table {};
     bool default_out_and_wt_table{};
@@ -1114,6 +1106,15 @@ struct DivInstrumentCSE1 {
     bool am2{};
     bool fm1{};
     bool fm2{};
+
+    unsigned int startP{}, endP{};
+    struct SampleTables {
+      unsigned short sampleIndex;
+      unsigned short outTable;
+      unsigned short ADSRTable;
+      unsigned short WaveTableTable;
+    } sample_tables;
+    bool useSample;
 
     unsigned char aloop{};
     unsigned char dloop{};
@@ -1136,7 +1137,6 @@ struct DivInstrumentCSE1 {
 
     unsigned char negLeft[CSE1_OPER_NUMBER+1];
     unsigned char negRight[CSE1_OPER_NUMBER+1];
-    unsigned char default_adsr_table;
     unsigned char default_out_table;
 
     unsigned int outLTable;
@@ -1145,7 +1145,7 @@ struct DivInstrumentCSE1 {
     Out():
     inLeft(), inRight(), outLeft(), outRight(),
     env_div_count(), env_div(), pitch(),
-    negLeft(), negRight(), default_adsr_table(), default_out_table(), outLTable(), outRTable() {}
+    negLeft(), negRight(), default_out_table(), outLTable(), outRTable() {}
   } out;
 
   struct special {

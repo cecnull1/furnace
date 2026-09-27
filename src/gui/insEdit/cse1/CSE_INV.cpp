@@ -16,6 +16,8 @@ constexpr auto threeBit_max = 0x07;
 constexpr auto sixBit_max = 0x3f;
 constexpr auto twoBit_max = 0x03;
 constexpr auto wave_max = 0x04;
+constexpr auto wave_sample_mode_min = 0x05;
+constexpr auto wave_sample_mode_max = 0x07;
 
 void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
     std::vector<FurnaceGUIMacroDesc> macroList;
@@ -68,39 +70,73 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
 
                 ImGui::SetNextItemWidth(-FLT_MIN);
                 ImGui::SliderScalar(
-                "##PHASE",
-                ImGuiDataType_S32,
-                &cse1.op[i].phase,
-                &gen_min, &big_max,
-                "PHASE: %d"
-                );
-
-                ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::SliderScalar(
                 "##ESTA",
                 ImGuiDataType_U8,
                 &cse1.op[i].adsr.adsrState,
                 &gen_min, &twoBit_max,
                 "ESTA: %d"
                 );
+                ImGui::Checkbox("useSample", &cse1.op[i].useSample);
 
-                ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::SliderScalar(
-                "##WAVE",
-                ImGuiDataType_U8,
-                &cse1.op[i].wave,
-                &gen_min, &wave_max,
-                "WAVE: %d"
-                );
+                if (!cse1.op[i].useSample) {
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    ImGui::SliderScalar(
+                    "##PHASE",
+                    ImGuiDataType_S32,
+                    &cse1.op[i].phase,
+                    &gen_min, &big_max,
+                    "PHASE: %d"
+                    );
 
-                ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::SliderScalar(
-                "##DUTY",
-                ImGuiDataType_U16,
-                &cse1.op[i].duty,
-                &gen_min, &gen_max,
-                "DUTY: %d"
-                );
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    ImGui::SliderScalar(
+                    "##WAVE",
+                    ImGuiDataType_U8,
+                    &cse1.op[i].wave,
+                    &gen_min, &wave_max,
+                    "WAVE: %d"
+                    );
+
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    ImGui::SliderScalar(
+                    "##DUTY",
+                    ImGuiDataType_U16,
+                    &cse1.op[i].duty,
+                    &gen_min, &gen_max,
+                    "DUTY: %d"
+                    );
+                } else {
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    ImGui::SliderScalar(
+                    "##SMMODE",
+                    ImGuiDataType_U8,
+                    &cse1.op[i].wave,
+                    &wave_sample_mode_min, &wave_sample_mode_max,
+                    "SMMODE: %d"
+                    );
+
+                    String sName;
+                    if (cse1.op[i].sample_tables.sampleIndex >= e->song.sampleLen) {
+                        sName = _("none selected");
+                    } else {
+                        sName = e->song.sample[cse1.op[i].sample_tables.sampleIndex]->name;
+                    }
+
+                    ImGui::AlignTextToFramePadding();
+                    ImGui::Text(_("Sample"));
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                    if (ImGui::BeginCombo("##CSESample", sName.c_str())) {
+                        String id;
+                        for (int s = 0; s < e->song.sampleLen; s++) {
+                            id = fmt::sprintf("%d: %s", s, e->song.sample[s]->name);
+                            if (ImGui::Selectable(id.c_str(), cse1.op[i].sample_tables.sampleIndex == s)) {
+                                cse1.op[i].sample_tables.sampleIndex = s;
+                            }
+                        }
+                        ImGui::EndCombo();
+                    }
+                }
 
                 ImGui::TableNextColumn();
                 ImGui::NewLine();
@@ -321,12 +357,15 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
         macroList.push_back(FurnaceGUIMacroDesc(_("Volume"),&ins->std.volMacro,0,65535,160,uiColors[GUI_COLOR_MACRO_VOLUME]));
         macroList.push_back(FurnaceGUIMacroDesc(_("Arpeggio"),&ins->std.arpMacro,-120,120,160,uiColors[GUI_COLOR_MACRO_PITCH],true,NULL,macroHoverNote,false,NULL,true,ins->std.arpMacro.val));
         macroList.push_back(FurnaceGUIMacroDesc(_("Panning (Left)"),&ins->std.panLMacro,0,65535,160,uiColors[GUI_COLOR_MACRO_OTHER]));
-        macroList.push_back(FurnaceGUIMacroDesc(_("Panning (Right)"),&ins->std.panRMacro,0,65535,160,uiColors[GUI_COLOR_MACRO_OTHER],false,NULL,NULL,true));
+        macroList.push_back(FurnaceGUIMacroDesc(_("Panning (Right)"),&ins->std.panRMacro,0,65535,160,uiColors[GUI_COLOR_MACRO_OTHER],false,NULL,NULL,false));
         macroList.push_back(FurnaceGUIMacroDesc(_("Pitch"),&ins->std.pitchMacro,-2048,2047,160,uiColors[GUI_COLOR_MACRO_PITCH],true,macroRelativeMode));
         macroList.push_back(FurnaceGUIMacroDesc(_("Phase Reset"),&ins->std.phaseResetMacro,0,1,32,uiColors[GUI_COLOR_MACRO_OTHER],false,NULL,NULL,true));
 
         drawMacros(macroList,macroEditStateMacros,ins);
         ImGui::EndTabItem();
+    }
+
+    for (int i = 0; i < CSE1_OPER_NUMBER; i++) {
     }
 }
 

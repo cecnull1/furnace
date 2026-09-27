@@ -56,18 +56,29 @@ void DivPlatformCSE1::muteChannel(int ch, bool mute) {
 
 void DivPlatformCSE1::tick(bool sysTick) {
   for (unsigned char i=0; i<chans; i++) {
-    if (sysTick) {
-      int outLbuf = chan[i].vol < 255 ? chan[i].outL*chan[i].vol>>8 : chan[i].outL;
-      int outRbuf = chan[i].vol < 255 ? chan[i].outR*chan[i].vol>>8 : chan[i].outR;
-      chip.CHANNELS.CHANNEL[i].OUT.OUT_L = chan[i].outL2 < 0xffff ? outLbuf * chan[i].outL2>>16 : outLbuf;
-      chip.CHANNELS.CHANNEL[i].OUT.OUT_R= chan[i].outR2 < 0xffff ? outRbuf * chan[i].outR2>>16 : outRbuf;
+    chan[i].std.next();
+    DivInstrument* ins = parent->getIns(chan[i].ins,DIV_INS_CSE1);
+    auto scaleVolume = 1;
+    switch (ins->type) {
+      case DIV_INS_QSOUND: {
+        scaleVolume = 0x0004; // 0x3fff
+        break;
+      }
+      case DIV_INS_ES5506:
+      case DIV_INS_AMIGA: {
+        scaleVolume = 0x0202;
+        break;
+      }
+      default: break;
     }
-
     if (chan[i].freqChanged || chan[i].keyOn || chan[i].keyOff) {
       chan[i].freqChanged=false;
       chan[i].freq=chan[i].calcFreq();
 
       if (chan[i].keyOn) {
+        chan[i].m_outL = 0xffff;
+        chan[i].m_outR = 0xffff;
+        chan[i].m_outA = 0xffff;
         chan[i].keyOn=false;
       }
       if (chan[i].keyOff) {
@@ -77,6 +88,43 @@ void DivPlatformCSE1::tick(bool sysTick) {
         chan[i].keyOff=false;
       }
     }
+
+    if (NEW_ARP_STRAT) {
+      chan[i].handleArp();
+    } else if (chan[i].std.arp.had && !chan[i].rawFreq) {
+      if (!chan[i].inPorta) {
+        chan[i].baseFreq=chan[i].calcBaseFreq(parent->calcArp(chan[i].note,chan[i].std.arp.val));
+      }
+      chan[i].freqChanged=true;
+    }
+    if (chan[i].std.pitch.had) {
+      if (chan[i].std.pitch.mode) {
+        chan[i].pitch2+=chan[i].std.pitch.val;
+        CLAMP_VAR(chan[i].pitch2,-32768,32767);
+      } else {
+        chan[i].pitch2=chan[i].std.pitch.val;
+      }
+      chan[i].freqChanged=true;
+    }
+    if (chan[i].std.panL.had) {
+      const int val=chan[i].std.panL.val&0xffff;
+      chan[i].m_outL = scaleVolume * (val < 0xffff ? val : 0x10000);
+    }
+    if (chan[i].std.panR.had) {
+      const int val=chan[i].std.panR.val&0xffff;
+      chan[i].m_outR = scaleVolume * (val < 0xffff ? val : 0x10000);
+    }
+    if (chan[i].std.vol.had) {
+      const int val=chan[i].std.vol.val&0xffff;
+      chan[i].m_outA = scaleVolume * (val < 0xffff ? val : 0x10000);
+    }
+
+    const auto originOutL = static_cast<uint64_t>(chan[i].outL) * chan[i].m_outA>>16;
+    const auto originOutR = static_cast<uint64_t>(chan[i].outR) * chan[i].m_outA>>16;
+    const auto outLbuf = chan[i].vol < 0xff ? (originOutL*chan[i].m_outL>>16)*chan[i].vol>>8 : (originOutL*chan[i].m_outL>>16);
+    const auto outRbuf = chan[i].vol < 0xff ? (originOutR*chan[i].m_outR>>16)*chan[i].vol>>8 : (originOutR*chan[i].m_outR>>16);
+    chip.CHANNELS.CHANNEL[i].OUT.OUT_L = chan[i].outL2 < 0xff ? outLbuf * chan[i].outL2>>8 : outLbuf;
+    chip.CHANNELS.CHANNEL[i].OUT.OUT_R= chan[i].outR2 < 0xff ? outRbuf * chan[i].outR2>>8 : outRbuf;
   }
 }
 
@@ -93,7 +141,7 @@ int DivPlatformCSE1::dispatch(DivCommand c) {
     case DIV_CMD_NOTE_ON: {
       DivInstrument* ins=parent->getIns(chan[c.chan].ins,DIV_INS_CSE1);
       chan[c.chan].active=true;
-      if (ins != nullptr) {
+      {
         switch (ins->type) {
           case DIV_INS_YMZ280B:
           case DIV_INS_ES5506:
@@ -159,10 +207,35 @@ int DivPlatformCSE1::dispatch(DivCommand c) {
           case DIV_INS_CSE1:
           default: {
             const auto& cse1 = ins->cse1;
+            auto cse1_sync = cse1;  // 复制，因为要改 startP / endP
             this->chan[c.chan].state.instrument = cse1;
             chan[c.chan].pitchTable = &pitchTable;
 
-            CSE1_REG_INS_SYNC::ins_to_reg(&cse1, &chip.CHANNELS.CHANNEL[c.chan]);
+            for (int op = 0; op < CSE1_OPER_NUMBER; op++) {
+              const uint16_t sampleIndex = cse1.op[op].sample_tables.sampleIndex;
+              if (cse1.op[op].useSample && sampleIndex < parent->song.sampleLen) {
+                DivSample* s = parent->getSample(sampleIndex);
+                if (s && s->samples > 0) {
+                  const uint32_t base = sampleOff[sampleIndex];
+                  if (cse1.op[op].wave == CSE1_PACKED::WAVE_TABLE_TYPE::OPER_WAVETABLE_SAMPLE) {
+                    cse1_sync.op[op].startP = base;
+                    continue;
+                  }
+                  if (s->loop) {
+                    cse1_sync.op[op].startP = base + s->getLoopStartPosition(DIV_SAMPLE_DEPTH_16BIT) / 2;
+                    cse1_sync.op[op].endP = base + s->getLoopEndPosition(DIV_SAMPLE_DEPTH_16BIT) / 2 - 1;
+                    cse1_sync.op[op].phase = base;
+                  } else {
+                    cse1_sync.op[op].startP = base;
+                    cse1_sync.op[op].endP = base + (s->getCurBufLen() + 1) / 2 - 1;
+                    cse1_sync.op[op].phase = base;
+                  }
+                }
+              }
+            }
+
+            this->chan[c.chan].state.instrument = cse1_sync;
+            CSE1_REG_INS_SYNC::ins_to_reg(&cse1_sync, &chip.CHANNELS.CHANNEL[c.chan]);
 
             chan[c.chan].outL = cse1.out.outLeft;
             chan[c.chan].outR = cse1.out.outRight;
@@ -173,17 +246,18 @@ int DivPlatformCSE1::dispatch(DivCommand c) {
             break;
           }
         }
+        chan[c.chan].macroInit(ins);
       }
       break;
     }
+    case DIV_CMD_NOTE_OFF_ENV:
+    case DIV_CMD_ENV_RELEASE:
+      chan[c.chan].std.release();
+      break;
     case DIV_CMD_NOTE_OFF: {
       chan[c.chan].active=false;
       chan[c.chan].sample=-1;
       chan[c.chan].active=false;
-      chan[c.chan].keyOff=true;
-      break;
-    }
-    case DIV_CMD_NOTE_OFF_ENV: {
       chan[c.chan].keyOff=true;
       break;
     }
@@ -234,6 +308,15 @@ int DivPlatformCSE1::dispatch(DivCommand c) {
     case DIV_CMD_GET_VOLMAX:
       return 255;
       break;
+    case DIV_CMD_MACRO_OFF:
+      chan[c.chan].std.mask(c.value,true);
+      break;
+    case DIV_CMD_MACRO_ON:
+      chan[c.chan].std.mask(c.value,false);
+      break;
+    case DIV_CMD_MACRO_RESTART:
+      chan[c.chan].std.restart(c.value);
+      break;
     default:
       break;
   }
@@ -241,8 +324,16 @@ int DivPlatformCSE1::dispatch(DivCommand c) {
 }
 
 void DivPlatformCSE1::notifyInsDeletion(void* ins) {
-  // nothing
+  for (int i=0; i<chans; i++) {
+    chan[i].std.notifyInsDeletion(static_cast<DivInstrument*>(ins));
+  }
 }
+
+DivMacroInt *DivPlatformCSE1::getChanMacroInt(int ch) {
+  if (ch>=chans) return nullptr;
+  return &chan[ch].std;
+}
+
 
 void DivPlatformCSE1::forceIns() {
   for (int i=0; i<chans; i++) {
@@ -353,6 +444,7 @@ void DivPlatformCSE1::reset() {
     chan[i].pitchTable=&pitchTable;
     chan[i].pitchTable=samplePitchTable.get(-1);
     chan[i].vol=255;
+    chan[i].std.setEngine(parent);
   }
 }
 
