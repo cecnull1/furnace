@@ -24,7 +24,7 @@
 namespace CSE1_PACKED {
     struct CSE1_OPER_STATE;
     struct CSE1_ADSR;
-    struct WaveTable;
+    struct CSE1_CONFIG_AND_TABLE;
     class CSE1;
     struct CSE1_FILTER_PRIVATE;
     struct CSE1_CHANNEL_REGISTERS;
@@ -48,10 +48,11 @@ namespace CSE1_PACKED {
         CSE1_REG ENV_VP;
         CSE1_REG ENV_STATE_FLAGS;
         CSE1_BIT_FIELD_MEMBER(ENV_ENUM, CSE1_REG, 0, 2, ENV_STATE_FLAGS)
+        CSE1_BIT_FIELD_MEMBER(ENV_DIVIDER, CSE1_REG, 2, 14, ENV_STATE_FLAGS)
 
-        void clock(const CSE1_OPER_STATE *state, const CSE1_ADSR &adsr) noexcept;
+        void clock_1(CSE1_OPER_STATE *state, const CSE1_ADSR &adsr) noexcept;
 
-        CSE1_BIT_FIELD_MEMBER(ENV_DIVIDER_COUNT, CSE1_REG, 2, 12, ENV_STATE_FLAGS)
+        void clock_1_1(CSE1_OPER_STATE *state, const CSE1_ADSR &adsr) noexcept;
     };
 
     struct CSE1_OPER_FLAGS_A {
@@ -60,6 +61,8 @@ namespace CSE1_PACKED {
         CSE1_BIT_FIELD_MEMBER(AM2, CSE1_REG, 1, 1, OPN2_SGU1_LIKE)
         CSE1_BIT_FIELD_MEMBER(FM1, CSE1_REG, 2, 1, OPN2_SGU1_LIKE)
         CSE1_BIT_FIELD_MEMBER(FM2, CSE1_REG, 3, 1, OPN2_SGU1_LIKE)
+        CSE1_BIT_FIELD_MEMBER(ALOOP, CSE1_REG, 4, 1, OPN2_SGU1_LIKE)
+        CSE1_BIT_FIELD_MEMBER(DLOOP, CSE1_REG, 5, 1, OPN2_SGU1_LIKE)
         CSE1_REG SPEC;
         CSE1_BIT_FIELD_MEMBER(ML, CSE1_REG, 0, 4, SPEC)
         CSE1_BIT_FIELD_MEMBER(OPN2_DETUNE, CSE1_REG, 4, 3, SPEC)
@@ -70,13 +73,6 @@ namespace CSE1_PACKED {
         CSE1_BIT_FIELD_MEMBER(NOT_DEFAULT_OUT_AND_WAVE_TABLE_TABLE, CSE1_REG, 13, 1, SPEC)
         CSE1_BIT_FIELD_MEMBER(RING, CSE1_REG, 14, 1, SPEC)
         CSE1_BIT_FIELD_MEMBER(SYNC, CSE1_REG, 15, 1, SPEC)
-    };
-
-    struct CSE1_OPER_FLAGS_B {
-        CSE1_REG SPEC;
-        CSE1_BIT_FIELD_MEMBER(ALOOP, CSE1_REG, 0, 1, SPEC)
-        CSE1_BIT_FIELD_MEMBER(DLOOP, CSE1_REG, 1, 1, SPEC)
-        CSE1_BIT_FIELD_MEMBER(ENV_DIVIDER, CSE1_REG, 2, 12, SPEC)
     };
 
     struct CSE1_ADSR {
@@ -105,12 +101,12 @@ namespace CSE1_PACKED {
         CSE1_DOUBLE_REG OUT_TABLE;
         CSE1_OPER_FLAGS_A FLAGS_A;
         CSE1_REG DUTY;
-        CSE1_OPER_FLAGS_B FLAGS_B;
+        CSE1_REG ENV_DIVIDER_COUNT;
 
-        void clock(const WaveTable &wave_table, const CSE1_CHANNEL_REGISTERS *state, uint64_t ExtFM1AddPitch, uint64_t
+        void clock(const CSE1_CONFIG_AND_TABLE &wave_table, const CSE1_CHANNEL_REGISTERS *state, uint64_t ExtFM1AddPitch, uint64_t
             ExtFM2AddPitch) noexcept;
 
-        CSE1_REG option_wavetable(const WaveTable &wave_table, CSE1_REG index) noexcept;
+        CSE1_REG option_wavetable(const CSE1_CONFIG_AND_TABLE &wave_table, CSE1_REG index) noexcept;
     };
 
     struct CSE1_CHANNEL_FLAGS_A {
@@ -141,7 +137,7 @@ namespace CSE1_PACKED {
         CSE1_REG FILTER_INFO;
         CSE1_BIT_FIELD_MEMBER(TYPES, CSE1_REG, 0, 3, FILTER_INFO)
 
-        void clock(const WaveTable &wave_table, const CSE1_CHANNEL_REGISTERS *state, CSE1_FILTER_PRIVATE &filter_private, const std::array<
+        void clock(const CSE1_CONFIG_AND_TABLE &wave_table, const CSE1_CHANNEL_REGISTERS *state, CSE1_FILTER_PRIVATE &filter_private, const std::array<
             CSE1_FILTER_PRIVATE, 3> &value, CSE1_DOUBLE_SIG_REG
             in1, CSE1_DOUBLE_SIG_REG in2) const;
 
@@ -160,7 +156,7 @@ namespace CSE1_PACKED {
         CSE1_BIT_FIELD_MEMBER(SHAPE2, CSE1_REG, 8, 2, CONFIG)
         CSE1_BIT_FIELD_MEMBER(FREQ2, CSE1_REG, 10, 2, CONFIG)
         CSE1_BIT_FIELD_MEMBER(DEPTH2, CSE1_REG, 12, 4, CONFIG)
-        static constexpr CSE1_REG option_wavetable(uint8_t shape, const WaveTable &wave_table,
+        static constexpr CSE1_REG option_wavetable(uint8_t shape, const CSE1_CONFIG_AND_TABLE &wave_table,
             CSE1_REG index) noexcept;
 
     };
@@ -185,7 +181,7 @@ namespace CSE1_PACKED {
     struct CSE1_OPS {
         std::array<CSE1_OPER_STATE, CSE1_OPER_NUMBER> OP;
 
-        void clock(const WaveTable &wave_table, const CSE1_CHANNEL_REGISTERS *State, CSE1_DOUBLE_SIG_REG &LeftBuf, CSE1_DOUBLE_SIG_REG &RightBuf) noexcept;
+        void clock(const CSE1_CONFIG_AND_TABLE &wave_table, const CSE1_CHANNEL_REGISTERS *State, CSE1_DOUBLE_SIG_REG &LeftBuf, CSE1_DOUBLE_SIG_REG &RightBuf) noexcept;
     };
 
     struct CSE1_CHANNEL_REGISTERS {
@@ -193,7 +189,7 @@ namespace CSE1_PACKED {
         CSE1_OUT OUT;
         CSE1_SPEC SPEC;
 
-        void clock(const WaveTable &wave_table, std::array<CSE1_FILTER_PRIVATE, 3> &value, CSE1_DOUBLE_SIG_REG &LeftBuf, CSE1_DOUBLE_SIG_REG
+        void clock(const CSE1_CONFIG_AND_TABLE &wave_table, std::array<CSE1_FILTER_PRIVATE, 3> &value, CSE1_DOUBLE_SIG_REG &LeftBuf, CSE1_DOUBLE_SIG_REG
             &RightBuf) noexcept;
     };
 
@@ -211,22 +207,22 @@ namespace CSE1_PACKED {
         std::array<std::array<CSE1_FILTER_PRIVATE, 3>, CSE1_CHANNEL_NUMBER> FILTER_PRIVATE;
         std::array<CSE1_DOUBLE_SIG_REG, CSE1_CHANNEL_NUMBER> OUTS_L;
         std::array<CSE1_DOUBLE_SIG_REG, CSE1_CHANNEL_NUMBER> OUTS_R;
-        void clock(const WaveTable &wave_table) noexcept;
+        void clock(const CSE1_CONFIG_AND_TABLE &wave_table) noexcept;
     };
 
-    struct WaveTable {
+    struct CSE1_CONFIG_AND_TABLE {
         std::array<CSE1_REG, 65536> sine{};
         std::array<CSE1_REG, 65536> triangle{};
-        std::array<CSE1_REG, 65536> old_js_expw{};
-        std::array<CSE1_REG, 65536> real_volume_line{};
-        std::array<CSE1_REG, 65536> linear_volume_line{};
-        std::array<CSE1_REG, 65536> exp_volume_line{};
+        std::array<CSE1_REG, 65536> volume_line{};
         std::array<CSE1_REG, 65536> divider_table{};
         std::array<CSE1_REG, 65536> tan_table{};
-        CSE1_REG* default_volume_line;
+        CSE1_REG default_volume_line;
         CSE1_REG* memPCM;
         CSE1_REG fastSpeed;
-        WaveTable();
+        CSE1_REG chipType;
+        bool not_fm;
+
+        CSE1_CONFIG_AND_TABLE();
 
         void reset() noexcept;
     };
@@ -234,16 +230,16 @@ namespace CSE1_PACKED {
     class CSE1 {
         public:
         CSE1_CHANNELS CHANNELS;
-        void clock(const WaveTable &wave_table) noexcept;
+        void clock(const CSE1_CONFIG_AND_TABLE &wave_table) noexcept;
 
         CSE1_DOUBLE_SIG_REG CSE1_GET_SAMPLE(uint8_t ch) const noexcept;
 
         void hard_reset();
     };
 
-    static constexpr CSE1_DOUBLE_REG MULT_CALC(CSE1_DOUBLE_REG left, uint8_t right) noexcept;
-    static constexpr CSE1_REG BIT_EX(bool v) noexcept;
-    static constexpr CSE1_DOUBLE_REG BIT_EX_32(bool v) noexcept;
+    static CSE1_DOUBLE_REG MULT_CALC(CSE1_DOUBLE_REG left, uint8_t right) noexcept;
+    static CSE1_REG BIT_EX(bool v) noexcept;
+    static CSE1_DOUBLE_REG BIT_EX_32(bool v) noexcept;
 }
 
 #undef CSE1_BIT_FIELD_MEMBER

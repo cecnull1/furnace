@@ -3043,6 +3043,21 @@ bool FurnaceGUI::drawSysConf(int chan, int sysPos, DivSystem type, DivConfig& fl
     case DIV_SYSTEM_CSE1: {
       constexpr int gen_min = 0;
       constexpr int gen_max = 65535;
+
+      int revision=flags.getInt("revision",1);
+
+      ImGui::Text("Chip revision:");
+      ImGui::Indent();
+      if (ImGui::RadioButton("CSE-1",revision==0)) {
+        revision=0;
+        altered=true;
+      }
+      if (ImGui::RadioButton("CSE-1.1 (Fix\?..No No No, is REPLACE ENVELOPE!!!)",revision==1)) {
+        revision=1;
+        altered=true;
+      }
+      ImGui::Unindent();
+
       int dvtt = flags.getInt("defaultVolumeTableType",1);
       int dvtspeed = flags.getInt("defaultVolumeTableSpeed",0x4000);
 
@@ -3077,11 +3092,21 @@ bool FurnaceGUI::drawSysConf(int chan, int sysPos, DivSystem type, DivConfig& fl
         ImGui::SetTooltip(_("Default clock speed is 192kHz (192000Hz)."));
       }
 
+      bool notfm=flags.getBool("not_fm",false);
+      if (ImGui::Checkbox(_("Not FM"),&notfm)) {
+        altered=true;
+      }
+      if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip(_("Warning! ...")); // TODO: 补充简介
+      }
+
       if (altered) {
         e->lockSave([&]() {
           flags.set("defaultVolumeTableType",dvtt);
           flags.set("defaultVolumeTableSpeed", dvtspeed);
           flags.set("quarterClock",(int)quarterClock);
+          flags.set("not_fm",(int)notfm);
+          flags.set("revision",revision);
         });
       }
       break;

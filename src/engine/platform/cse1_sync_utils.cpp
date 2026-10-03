@@ -20,8 +20,8 @@ namespace CSE1_REG_INS_SYNC {
             op.ADSR.SL = ins->op[a].adsr.sl;
             op.ADSR.SR = ins->op[a].adsr.sr;
             op.ADSR.RR = ins->op[a].adsr.rr;
-            op.FLAGS_B.SET_ENV_DIVIDER(ins->op[a].env_divider);
-            op.ENV_STATE.SET_ENV_ENUM(ins->op[a].adsr.adsrState);
+            op.ENV_STATE.SET_ENV_DIVIDER(ins->op[a].env_divider);
+            op.FLAGS_A.SET_REV(ins->op[a].rev);
 
             op.FLAGS_A.SET_ML(ins->op[a].ml);
             op.FLAGS_A.SET_OPN2_DETUNE(ins->op[a].dn);
@@ -51,6 +51,15 @@ namespace CSE1_REG_INS_SYNC {
         reg->SPEC.LFO_CONFIG.SET_FREQ2(ins->special.lfo2.freq);
         reg->SPEC.LFO_CONFIG.SET_DEPTH2(ins->special.lfo2.depth);
         reg->SPEC.LFO_CONFIG.SET_SHAPE2(ins->special.lfo2.wave);
+
+        uint8_t buf_neg_l = 0;
+        uint8_t buf_neg_r = 0;
+        for (size_t i = 0; i < CSE1_OPER_NUMBER+1; i++) {
+            buf_neg_l |= ins->out.negLeft[i]<<i;
+            buf_neg_r |= ins->out.negRight[i]<<i;
+        }
+        reg->OUT.FLAGS_A.SET_NEG_LEFT(buf_neg_l);
+        reg->OUT.FLAGS_A.SET_NEG_RIGHT(buf_neg_r);
     }
 
     void reg_to_ins(const CSE1_PACKED::CSE1_CHANNEL_REGISTERS *reg, DivInstrumentCSE1 *ins) {
@@ -68,8 +77,8 @@ namespace CSE1_REG_INS_SYNC {
             ins->op[a].adsr.sl = op.ADSR.SL;
             ins->op[a].adsr.sr = op.ADSR.SR;
             ins->op[a].adsr.rr = op.ADSR.RR;
-            ins->op[a].env_divider = op.FLAGS_B.GET_ENV_DIVIDER();
-            ins->op[a].adsr.adsrState = op.ENV_STATE.GET_ENV_ENUM();
+            ins->op[a].env_divider = op.ENV_STATE.GET_ENV_DIVIDER();
+            ins->op[a].rev = op.FLAGS_A.GET_REV();
 
             ins->op[a].ml = op.FLAGS_A.GET_ML();
             ins->op[a].dn = op.FLAGS_A.GET_OPN2_DETUNE();
@@ -88,6 +97,10 @@ namespace CSE1_REG_INS_SYNC {
         for (size_t o = 0; o < CSE1_OPER_NUMBER; o++) {
             ins->out.inLeft[o] = reg->OUT.IN_L.MI[o];
             ins->out.inRight[o] = reg->OUT.IN_R.MI[o];
+        }
+        for (size_t i = 0; i < CSE1_OPER_NUMBER+1; i++) {
+            ins->out.negLeft[i] = (reg->OUT.FLAGS_A.GET_NEG_LEFT()>>i)&1;
+            ins->out.negRight[i] = (reg->OUT.FLAGS_A.GET_NEG_RIGHT()>>i)&1;
         }
 
         ins->out.outLeft = reg->OUT.OUT_L;

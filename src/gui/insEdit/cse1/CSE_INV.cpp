@@ -6,18 +6,16 @@
 #include "../../../engine/platform/sound/cse1/cse1.hpp"
 #include "../gui/insEdit/insEditCommon.h"
 
-constexpr auto gen_min = 0;
-constexpr auto gen_max = 0xffff;
-constexpr CSE1_PACKED::CSE1_DOUBLE_REG big_max = 0x7fffffffu;
-constexpr auto byteBit_max = 0xff;
-constexpr auto b12Bit_max = 0xfff;
-constexpr auto fourBit_max = 0x0f;
-constexpr auto threeBit_max = 0x07;
-constexpr auto sixBit_max = 0x3f;
-constexpr auto twoBit_max = 0x03;
-constexpr auto wave_max = 0x04;
-constexpr auto wave_sample_mode_min = 0x05;
-constexpr auto wave_sample_mode_max = 0x07;
+constexpr uint64_t gen_min = 0;
+constexpr uint16_t gen_max      = 0xffff;
+constexpr uint16_t b14Bit_max      = 0x3fff;
+constexpr uint8_t  twoBit_max   = 0x03;
+constexpr uint8_t  threeBit_max = 0x07;
+constexpr uint8_t  fourBit_max  = 0x0f;
+constexpr uint8_t  wave_max     = 0x04;
+constexpr uint8_t  wave_sample_mode_min = 0x05;
+constexpr uint8_t  wave_sample_mode_max = 0x07;
+constexpr int32_t  big_max      = 0x7fffffff;
 
 void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
     std::vector<FurnaceGUIMacroDesc> macroList;
@@ -65,17 +63,15 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
                 &gen_min, &gen_max,
                 "OUTR: %d");
 
+                ImGui::Checkbox(fmt::format("LN{0}", i + 1).c_str(), &cse1.out.negLeft[i]);
+                ImGui::SameLine();
+                ImGui::Checkbox(fmt::format("RN{0}", i + 1).c_str(), &cse1.out.negRight[i]);
+
                 ImGui::TableNextColumn();
                 ImGui::NewLine();
 
-                ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::SliderScalar(
-                "##ESTA",
-                ImGuiDataType_U8,
-                &cse1.op[i].adsr.adsrState,
-                &gen_min, &twoBit_max,
-                "ESTA: %d"
-                );
+                ImGui::Checkbox("REV", &cse1.op[i].rev);
+
                 ImGui::Checkbox("useSample", &cse1.op[i].useSample);
 
                 if (!cse1.op[i].useSample) {
@@ -195,7 +191,7 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
                 "##AR",
                 ImGuiDataType_U16,
                 &cse1.op[i].adsr.ar,
-                &gen_min, &big_max,
+                &gen_min, &gen_max,
                 "A: %d"
                 );
 
@@ -204,7 +200,7 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
                 "##DR",
                 ImGuiDataType_U16,
                 &cse1.op[i].adsr.dr,
-                &gen_min, &big_max,
+                &gen_min, &gen_max,
                 "D: %d"
                 );
 
@@ -213,7 +209,7 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
                 "##SR",
                 ImGuiDataType_U16,
                 &cse1.op[i].adsr.sr,
-                &gen_min, &big_max,
+                &gen_min, &gen_max,
                 "D2: %d"
                 );
 
@@ -222,7 +218,7 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
                 "##SL",
                 ImGuiDataType_U16,
                 &cse1.op[i].adsr.sl,
-                &gen_min, &big_max,
+                &gen_min, &gen_max,
                 "S: %d"
                 );
 
@@ -231,7 +227,7 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
                 "##RR",
                 ImGuiDataType_U16,
                 &cse1.op[i].adsr.rr,
-                &gen_min, &big_max,
+                &gen_min, &gen_max,
                 "R: %d"
                 );
 
@@ -240,7 +236,7 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
                 "##EDIV",
                 ImGuiDataType_U16,
                 &cse1.op[i].env_divider,
-                &gen_min, &b12Bit_max,
+                &gen_min, &b14Bit_max,
                 "EDIV: %d"
                 );
 
@@ -316,7 +312,7 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
             "##L1SHAPE",
             ImGuiDataType_U8,
             &cse1.special.lfo1.wave,
-            &gen_min, &fourBit_max,
+            &gen_min, &twoBit_max,
             "L1SHAPE: %d"
             );
 
@@ -366,6 +362,10 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
     }
 
     for (int i = 0; i < CSE1_OPER_NUMBER; i++) {
+    }
+
+    if (ImGui::BeginTabItem("Game?")) {
+        ImGui::EndTabItem();
     }
 }
 

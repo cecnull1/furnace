@@ -76,6 +76,9 @@ void DivPlatformCSE1::tick(bool sysTick) {
       chan[i].freq=chan[i].calcFreq();
 
       if (chan[i].keyOn) {
+        for (auto& op : chip.CHANNELS.CHANNEL[i].OPS.OP)  {
+          op.ENV_STATE.SET_ENV_ENUM(0);
+        }
         chan[i].m_outL = 0xffff;
         chan[i].m_outR = 0xffff;
         chan[i].m_outA = 0xffff;
@@ -141,6 +144,7 @@ int DivPlatformCSE1::dispatch(DivCommand c) {
     case DIV_CMD_NOTE_ON: {
       DivInstrument* ins=parent->getIns(chan[c.chan].ins,DIV_INS_CSE1);
       chan[c.chan].active=true;
+      chan[c.chan].keyOn=true;
       {
         switch (ins->type) {
           case DIV_INS_YMZ280B:
@@ -207,8 +211,7 @@ int DivPlatformCSE1::dispatch(DivCommand c) {
           case DIV_INS_CSE1:
           default: {
             const auto& cse1 = ins->cse1;
-            auto cse1_sync = cse1;  // 复制，因为要改 startP / endP
-            this->chan[c.chan].state.instrument = cse1;
+            auto cse1_sync = cse1;
             chan[c.chan].pitchTable = &pitchTable;
 
             for (int op = 0; op < CSE1_OPER_NUMBER; op++) {
@@ -475,24 +478,10 @@ void DivPlatformCSE1::setFlags(const DivConfig& flags) {
   for (int i = 0; i < chans; i++) {
     oscBuf[i]->setRate(rate);
   }
-  switch (flags.getInt("defaultVolumeTableType",1)) {
-    case 0:
-      waveTable.default_volume_line = waveTable.old_js_expw.data();
-      break;
-    case 1:
-      waveTable.default_volume_line = waveTable.real_volume_line.data();
-      break;
-    case 2:
-      waveTable.default_volume_line = waveTable.linear_volume_line.data();
-      break;
-    case 3:
-      waveTable.default_volume_line = waveTable.exp_volume_line.data();
-      break;
-    default:
-      waveTable.default_volume_line = waveTable.old_js_expw.data();
-      break;
-  }
-  waveTable.fastSpeed = flags.getInt("defaultVolumeTableSpeed",0x0100);;
+  waveTable.default_volume_line = flags.getInt("defaultVolumeTableType",1);
+  waveTable.fastSpeed = flags.getInt("defaultVolumeTableSpeed",0x4000);
+  waveTable.not_fm = flags.getBool("not_fm",false);
+  waveTable.chipType = flags.getInt("revision",1);
   waveTable.reset();
   notifyPitchTable();
 }
