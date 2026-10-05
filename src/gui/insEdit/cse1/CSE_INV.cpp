@@ -385,7 +385,11 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
     for (int i = 0; i < CSE1_OPER_NUMBER; i++) {
     }
 
-    if (ImGui::BeginTabItem("Game?")) {
+    if (ImGui::BeginTabItem("About")) {
+        ImGui::Text("Soft Core Version: Beta 0.1.1");
+        ImGui::Text("Name: Cecnull1 Sound Engine 1");
+        ImGui::Text("Or  : Audio Cecnull1 Engine 1");
+        ImGui::Text("Author: Cecnull1");
         ImGui::EndTabItem();
     }
 }
