@@ -416,7 +416,7 @@ void DivPlatformCSE1::renderSamples(int sysID) {
     memset(sampleLoaded, 0, 32768 * sizeof(bool));
 
     memCompo = DivMemoryComposition();
-    memCompo.name = "Sample RAM";
+    memCompo.name = "CSE-1 RAM (1 Byte = 16 Bit)";
 
   size_t memPos=0;
   for (int i=0; i<parent->song.sampleLen; i++) {
@@ -426,26 +426,29 @@ void DivPlatformCSE1::renderSamples(int sysID) {
       continue;
     }
 
-    const unsigned int length=s->getCurBufLen();
-    const auto* src=static_cast<unsigned char *>(s->getCurBuf());
-    const unsigned int actualLength=MIN(getSampleMemCapacity(0)-memPos,length);
-    if (actualLength>0) {
+    const uint32_t lengthByte = s->getCurBufLen();
+    const uint32_t lengthCSE1_REG = lengthByte>>1;
+    const uint8_t* originData = static_cast<uint8_t*>(s->getCurBuf());
+    const uint32_t length = s->depth == DIV_SAMPLE_DEPTH_16BIT ? lengthCSE1_REG : lengthByte;
+    const size_t maxSize = getSampleMemCapacity(0);
+    if (memPos+length>maxSize) {
+      sampleLoaded[i]=false;
+      continue;
+    }
+
+    if (length>0) {
       if (s->depth==DIV_SAMPLE_DEPTH_16BIT) {
-        for (unsigned int si = 0; si < actualLength>>1; si++) {
-            pcmMem[memPos+si] = reinterpret_cast<const uint16_t*>(src)[si]^0x8000;
+        for (unsigned int si = 0; si < length; si++) {
+            pcmMem[memPos+si] = reinterpret_cast<const uint16_t*>(originData)[si]^0x8000;
         }
       } else {
-        for (unsigned int si = 0; si < actualLength; si++) {
-          pcmMem[memPos+si] = (static_cast<uint16_t>(src[si]^0x80)<<8)|static_cast<uint16_t>(src[si]^0x80);
+        for (unsigned int si = 0; si < length; si++) {
+          pcmMem[memPos+si] = (static_cast<uint16_t>(originData[si]^0x80)<<8)|static_cast<uint16_t>(originData[si]^0x80);
         }
       }
       sampleOff[i]=memPos;
       memCompo.entries.push_back(DivMemoryEntry(DIV_MEMORY_SAMPLE,"Sample",i,memPos,memPos+length));
-      memPos+=length;
-    }
-    if (actualLength<length) {
-      logW("out of CSE-1 PCM memory for sample %d!",i);
-      break;
+      memPos += length;
     }
     sampleLoaded[i]=true;
   }
