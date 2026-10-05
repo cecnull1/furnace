@@ -17,6 +17,13 @@ constexpr uint8_t  wave_sample_mode_min = 0x05;
 constexpr uint8_t  wave_sample_mode_max = 0x07;
 constexpr int32_t  big_max      = 0x7fffffff;
 
+const std::array<std::string, 4> pitchTableMenu = {
+    "Normal",
+    "Fixed",
+    "Pitch",
+    "Sample"
+};
+
 void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
     std::vector<FurnaceGUIMacroDesc> macroList;
     auto& cse1 = ins -> cse1;
@@ -173,7 +180,21 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
                 "OPN2DT: %d"
                 );
 
-                ImGui::Checkbox("Fixed", &cse1.op[i].fixed);
+                //ImGui::Checkbox("Fixed", &cse1.op[i].fixed);
+
+                ImGui::Text(_("PitchMode"));
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                if (ImGui::BeginCombo("##PitchMode", pitchTableMenu[cse1.op[i].pitchMode].c_str())) {
+                    String id;
+                    for (size_t s = 0; s < pitchTableMenu.size(); s++) {
+                        id = pitchTableMenu[s];
+                        if (ImGui::Selectable(id.c_str(), cse1.op[i].pitchMode == s)) {
+                            cse1.op[i].pitchMode = s;
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
 
                 ImGui::Checkbox("AM1", &cse1.op[i].am1);
                 ImGui::SameLine();

@@ -445,7 +445,6 @@ JSON serializeInstrument(DivInstrument* ins) {
       break;
     case DIV_INS_CSE1:
       featureSE=true;
-      featureSM=true;
       break;
     case DIV_INS_STD:
     case DIV_INS_TIA:

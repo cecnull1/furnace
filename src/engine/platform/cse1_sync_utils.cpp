@@ -26,7 +26,7 @@ namespace CSE1_REG_INS_SYNC {
             op.FLAGS_A.SET_ML(ins->op[a].ml);
             op.FLAGS_A.SET_OPN2_DETUNE(ins->op[a].dn);
             op.PITCH = (ins->op[a].hpitch<<16)+ins->op[a].lpitch;
-            op.FLAGS_A.SET_FIXED(ins->op[a].fixed);
+            op.FLAGS_A.SET_FIXED(ins->op[a].pitchMode != 0);
 
             op.FLAGS_A.SET_AM1(ins->op[a].am1);
             op.FLAGS_A.SET_AM2(ins->op[a].am2);
@@ -84,7 +84,7 @@ namespace CSE1_REG_INS_SYNC {
             ins->op[a].dn = op.FLAGS_A.GET_OPN2_DETUNE();
             ins->op[a].hpitch = op.PITCH>>16&0xffff;
             ins->op[a].lpitch = op.PITCH&0xffff;
-            ins->op[a].fixed = op.FLAGS_A.GET_FIXED();
+            ins->op[a].pitchMode = !op.FLAGS_A.GET_FIXED();
 
             ins->op[a].am1 = op.FLAGS_A.GET_AM1();
             ins->op[a].am2 = op.FLAGS_A.GET_AM2();

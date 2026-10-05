@@ -1100,7 +1100,7 @@ struct DivInstrumentCSE1 {
 
     bool default_adsr_table {};
     bool default_out_and_wt_table{};
-    bool fixed{};
+    uint8_t pitchMode{};
     bool rev{};
     bool am1{};
     bool am2{};

@@ -97,10 +97,9 @@ namespace CSE1_PACKED {
     }
 
     void CSE1_OPER_STATE::clock(const CSE1_CONFIG_AND_TABLE &wave_table, const CSE1_CHANNEL_REGISTERS *state, const uint64_t ExtFM1AddPitch, const uint64_t ExtFM2AddPitch) noexcept {
-        const auto o_pitch = this->FLAGS_A.GET_FIXED() ? this->PITCH : state->OUT.PITCH;
+        const auto o_pitch = this->FLAGS_A.GET_FIXED() ? this->PITCH : state->OUT.PITCH+this->PITCH;
         const auto pitch = MULT_CALC(
                 o_pitch +
-                this->PITCH +
                 (this->FLAGS_A.GET_OPN2_DETUNE()-4) * (o_pitch >> 10) +
                 (FLAGS_A.GET_FM1() ? ExtFM1AddPitch * o_pitch >> 24: 0) +
                 (FLAGS_A.GET_FM2() ? ExtFM2AddPitch * o_pitch >> 24: 0),
@@ -119,7 +118,7 @@ namespace CSE1_PACKED {
                 DUTY += in_pitch & 0xffff;
             } else if (this->FLAGS_A.GET_WAVE() == OPER_LOOP_SAMPLE) {
                 PHASE = next_phase - static_cast<uint64_t>(END_PHASE) + static_cast<uint64_t>(START_PHASE) - 1;
-                if (PHASE >= static_cast<uint64_t>(END_PHASE)+1) PHASE = 0;
+                if (PHASE >= static_cast<uint64_t>(END_PHASE)+1) PHASE = static_cast<uint64_t>(START_PHASE);
                 DUTY += in_pitch & 0xffff;
             } else {
                 PHASE = END_PHASE;
