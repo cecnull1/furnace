@@ -28,7 +28,7 @@ class DivPlatformCSE1 : public DivDispatch {
     bool isMuted[CSE1_CHANNEL_NUMBER];
     unsigned char chans;
     CSE1_PACKED::CSE1 chip;
-    CSE1_PACKED::WaveTable waveTable;
+    CSE1_PACKED::CSE1_CONFIG_AND_TABLE waveTable;
     DivMemoryComposition memCompo;
     CSE1_PACKED::CSE1_REG* pcmMem;
     unsigned int* sampleOff;

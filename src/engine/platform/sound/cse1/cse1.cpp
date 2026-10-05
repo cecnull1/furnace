@@ -14,19 +14,19 @@ namespace CSE1_PACKED {
         this->CHANNELS = CSE1_CHANNELS();
     }
 
-    void CSE1::clock(const WaveTable& wave_table) noexcept {
+    void CSE1::clock(const CSE1_CONFIG_AND_TABLE& wave_table) noexcept {
         this->CHANNELS.clock(wave_table);
     }
 
     CSE1_DOUBLE_SIG_REG CSE1::CSE1_GET_SAMPLE(uint8_t ch) const noexcept {
-        int64_t ret = (static_cast<int64_t>(this->CHANNELS.OUTS_L[ch]) + static_cast<int64_t>(this->CHANNELS.OUTS_R[ch]));
+        int64_t ret = (static_cast<int64_t>(this->CHANNELS.OUTS_L[ch]) + static_cast<int64_t>(this->CHANNELS.OUTS_R[ch]))>>1;
         if (ret < INT16_MIN) ret = INT16_MIN;
         if (ret > INT16_MAX) ret = INT16_MAX;
         return static_cast<int32_t>(ret);
     }
 
-    void CSE1_CHANNELS::clock(const WaveTable& wave_table) noexcept {
-        for (size_t i = 0; i < CHANNEL.size(); i++) {
+    void CSE1_CHANNELS::clock(const CSE1_CONFIG_AND_TABLE& wave_table) noexcept {
+        for (size_t i = 0; i < CSE1_CHANNEL_NUMBER; i++) {
             auto& channel = CHANNEL[i];
             auto& filterState = FILTER_PRIVATE[i];
             OUTS_R[i]=OUTS_L[i]=0;
@@ -34,7 +34,7 @@ namespace CSE1_PACKED {
         }
     }
 
-    void CSE1_CHANNEL_REGISTERS::clock(const WaveTable& wave_table, std::array<CSE1_FILTER_PRIVATE, 3>& value, CSE1_DOUBLE_SIG_REG& LeftBuf, CSE1_DOUBLE_SIG_REG& RightBuf) noexcept {
+    void CSE1_CHANNEL_REGISTERS::clock(const CSE1_CONFIG_AND_TABLE& wave_table, std::array<CSE1_FILTER_PRIVATE, 3>& value, CSE1_DOUBLE_SIG_REG& LeftBuf, CSE1_DOUBLE_SIG_REG& RightBuf) noexcept {
         CSE1_DOUBLE_SIG_REG LeftBuf2 = 0;
         CSE1_DOUBLE_SIG_REG RightBuf2 = 0;
         OPS.clock(wave_table, this, LeftBuf2, RightBuf2);
@@ -49,12 +49,12 @@ namespace CSE1_PACKED {
             RightBuf3 += value[f].VFB_R;
         }
 
-        LeftBuf = (LeftBuf2 * wave_table.default_volume_line[OUT.OUT_L] >> 16) + LeftBuf3;
-        RightBuf = (RightBuf2 * wave_table.default_volume_line[OUT.OUT_R] >> 16) + RightBuf3;
+        LeftBuf = (LeftBuf2 * wave_table.volume_line[OUT.OUT_L] >> 16) + LeftBuf3;
+        RightBuf = (RightBuf2 * wave_table.volume_line[OUT.OUT_R] >> 16) + RightBuf3;
     }
 
     void CSE1_FILTER::clock(
-        const WaveTable& wave_table,
+        const CSE1_CONFIG_AND_TABLE& wave_table,
         const CSE1_CHANNEL_REGISTERS* state,
         CSE1_FILTER_PRIVATE& filter_private,
         const std::array<CSE1_FILTER_PRIVATE, 3>& value,
@@ -63,48 +63,50 @@ namespace CSE1_PACKED {
         // TODO: Filter
     }
 
-    void CSE1_OPS::clock(const WaveTable &wave_table, const CSE1_CHANNEL_REGISTERS* State, CSE1_DOUBLE_SIG_REG &LeftBuf, CSE1_DOUBLE_SIG_REG &RightBuf) noexcept {
+    void CSE1_OPS::clock(const CSE1_CONFIG_AND_TABLE &wave_table, const CSE1_CHANNEL_REGISTERS* State, CSE1_DOUBLE_SIG_REG &LeftBuf, CSE1_DOUBLE_SIG_REG &RightBuf) noexcept {
 
         const auto fm1pitch = static_cast<uint64_t>(static_cast<CSE1_SIG_REG>(CSE1_LFO_CONFIG::option_wavetable(State->SPEC.LFO_CONFIG.GET_SHAPE(), wave_table, State->SPEC.LFO1.PHASE)-0x8000)
                     *State->SPEC.LFO_CONFIG.GET_DEPTH());
         const auto fm2pitch = static_cast<uint64_t>(static_cast<CSE1_SIG_REG>(CSE1_LFO_CONFIG::option_wavetable(State->SPEC.LFO_CONFIG.GET_SHAPE2(), wave_table, State->SPEC.LFO2.PHASE)-0x8000)
                     *State->SPEC.LFO_CONFIG.GET_DEPTH2());
 
-        for (size_t opi = 0; opi < OP.size(); opi++) {
+        for (size_t opi = 0; opi < CSE1_OPER_NUMBER; opi++) {
             CSE1_OPER_STATE& op = OP[opi];
-            const auto volume = !op.FLAGS_A.GET_NOT_DEFAULT_ADSR_TABLE() ? wave_table.default_volume_line[op.ENV_STATE.ENV_VP] : wave_table.memPCM[op.ADSR_WAVE_TABLE+op.ENV_STATE.ENV_VP];
+            const auto volume = !op.FLAGS_A.GET_NOT_DEFAULT_ADSR_TABLE() ? wave_table.volume_line[op.ENV_STATE.ENV_VP] : wave_table.memPCM[op.ADSR_WAVE_TABLE+op.ENV_STATE.ENV_VP];
             op.clock(wave_table, State, fm1pitch, fm2pitch);
             op.PITCH+=State->SPEC.SWEEP_FREQS[opi].FREQ_SPEED;
             const auto ov = !op.FLAGS_A.GET_NOT_DEFAULT_OUT_AND_WAVE_TABLE_TABLE() ? op.VFB : wave_table.memPCM[op.OUT_TABLE+op.VFB];
-            LeftBuf +=  (((ov-0x8000)*State->OUT.IN_L.MI[opi]>>16)*volume>>16)>>3;
-            RightBuf += (((ov-0x8000)*State->OUT.IN_R.MI[opi]>>16)*volume>>16)>>3;
+            const CSE1_DOUBLE_SIG_REG LB = (((ov-0x8000)*State->OUT.IN_L.MI[opi]>>16)*volume>>16)>>2;
+            const CSE1_DOUBLE_SIG_REG RB = (((ov-0x8000)*State->OUT.IN_R.MI[opi]>>16)*volume>>16)>>2;
+
+            LeftBuf += (State->OUT.FLAGS_A.GET_NEG_LEFT() >> opi)&1 ? -LB : LB;
+            RightBuf += (State->OUT.FLAGS_A.GET_NEG_RIGHT() >> opi)&1 ? -RB : RB;
         }
     }
 
-    constexpr CSE1_DOUBLE_REG MULT_CALC(const CSE1_DOUBLE_REG left, const uint8_t right) noexcept {
+    CSE1_DOUBLE_REG MULT_CALC(const CSE1_DOUBLE_REG left, const uint8_t right) noexcept {
         return right == 0 ? left >> 1 : left * right;
     }
 
-    constexpr CSE1_REG BIT_EX(const bool v) noexcept {
+    CSE1_REG BIT_EX(const bool v) noexcept {
         return ~(static_cast<CSE1_REG>(v)-1u);
     }
 
-    constexpr CSE1_DOUBLE_REG BIT_EX_32(const bool v) noexcept {
+    CSE1_DOUBLE_REG BIT_EX_32(const bool v) noexcept {
         return  ~(static_cast<CSE1_DOUBLE_REG>(v)-1u);
     }
 
-    void CSE1_OPER_STATE::clock(const WaveTable &wave_table, const CSE1_CHANNEL_REGISTERS *state, const uint64_t ExtFM1AddPitch, const uint64_t ExtFM2AddPitch) noexcept {
-        const auto o_pitch = this->FLAGS_A.GET_FIXED() ? this->PITCH : state->OUT.PITCH;
+    void CSE1_OPER_STATE::clock(const CSE1_CONFIG_AND_TABLE &wave_table, const CSE1_CHANNEL_REGISTERS *state, const uint64_t ExtFM1AddPitch, const uint64_t ExtFM2AddPitch) noexcept {
+        const auto o_pitch = this->FLAGS_A.GET_FIXED() ? this->PITCH : state->OUT.PITCH+this->PITCH;
         const auto pitch = MULT_CALC(
                 o_pitch +
-                this->PITCH +
                 (this->FLAGS_A.GET_OPN2_DETUNE()-4) * (o_pitch >> 10) +
                 (FLAGS_A.GET_FM1() ? ExtFM1AddPitch * o_pitch >> 24: 0) +
                 (FLAGS_A.GET_FM2() ? ExtFM2AddPitch * o_pitch >> 24: 0),
                 this->FLAGS_A.GET_ML()
                 );
         if (FLAGS_A.GET_WAVE() < 6) {
-            PHASE += pitch;
+            PHASE += this->FLAGS_A.GET_REV() ? -pitch : pitch;
         } else {
             const auto in_pitch = pitch;
             const auto next_phase = static_cast<uint64_t>(PHASE)+
@@ -116,19 +118,31 @@ namespace CSE1_PACKED {
                 DUTY += in_pitch & 0xffff;
             } else if (this->FLAGS_A.GET_WAVE() == OPER_LOOP_SAMPLE) {
                 PHASE = next_phase - static_cast<uint64_t>(END_PHASE) + static_cast<uint64_t>(START_PHASE) - 1;
+                if (PHASE >= static_cast<uint64_t>(END_PHASE)+1) PHASE = static_cast<uint64_t>(START_PHASE);
                 DUTY += in_pitch & 0xffff;
             } else {
                 PHASE = END_PHASE;
                 DUTY = 0;
             }
         }
-        this->ENV_STATE.clock(this, this->ADSR);
+
+        switch (wave_table.chipType) {
+            case 0: {
+                this->ENV_STATE.clock_1(this, this->ADSR);
+                break;
+            }
+            case 1: {
+                this->ENV_STATE.clock_1_1(this, this->ADSR);
+                break;
+            }
+            default: break;
+        }
 
         CSE1_REG add_phase = 0;
-        for (size_t i = 0; i < state->OPS.OP.size(); i++) {
+        if (!wave_table.not_fm) for (size_t i = 0; i < CSE1_OPER_NUMBER; i++) {
             auto& op = state->OPS.OP[i];
             add_phase += (static_cast<uint32_t>(op.VFB * (
-                !op.FLAGS_A.GET_NOT_DEFAULT_ADSR_TABLE() ? wave_table.default_volume_line[op.ENV_STATE.ENV_VP] : wave_table.memPCM[op.ADSR_WAVE_TABLE+op.ENV_STATE.ENV_VP]
+                !op.FLAGS_A.GET_NOT_DEFAULT_ADSR_TABLE() ? wave_table.volume_line[op.ENV_STATE.ENV_VP] : wave_table.memPCM[op.ADSR_WAVE_TABLE+op.ENV_STATE.ENV_VP]
                 )) >> 16) * this->MIS.MI[i] >> 13;
         }
         add_phase += PHASE>>16;
@@ -150,9 +164,9 @@ namespace CSE1_PACKED {
         return a < b ? 0 : a - b;
     }
 
-    void CSE1_OPER_ENV_STATE::clock(const CSE1_OPER_STATE *state, const CSE1_ADSR &adsr) noexcept {
-        if (this->GET_ENV_DIVIDER_COUNT() == 0) {
-            this->SET_ENV_DIVIDER_COUNT(state->FLAGS_B.GET_ENV_DIVIDER());
+    void CSE1_OPER_ENV_STATE::clock_1(CSE1_OPER_STATE *state, const CSE1_ADSR &adsr) noexcept {
+        if (state->ENV_DIVIDER_COUNT == 0) {
+            state->ENV_DIVIDER_COUNT = this->GET_ENV_DIVIDER();
             switch(this->GET_ENV_ENUM()) {
                 case 0: {
                     ENV_VP = sat_add_u16(ENV_VP, adsr.AR);
@@ -175,10 +189,73 @@ namespace CSE1_PACKED {
                 default: ;
             }
         }
-        this->SET_ENV_DIVIDER_COUNT(this->GET_ENV_DIVIDER_COUNT()-1);
+        if (state->ENV_DIVIDER_COUNT != 0) {
+            state->ENV_DIVIDER_COUNT = state->ENV_DIVIDER_COUNT-1;
+        } else {
+            state->ENV_DIVIDER_COUNT = 4095;
+        }
     }
 
-    constexpr CSE1_REG CSE1_LFO_CONFIG::option_wavetable(const uint8_t shape, const WaveTable &wave_table,
+    void CSE1_OPER_ENV_STATE::clock_1_1(CSE1_OPER_STATE *state, const CSE1_ADSR &adsr) noexcept {
+        CSE1_REG div;
+        switch (this->GET_ENV_ENUM()) {
+            case 0:  div = ~adsr.AR; break;
+            case 1:  div = ~adsr.DR; break;
+            case 2:  div = ~adsr.SR; break;
+            default: div = ~adsr.RR; break;
+        }
+
+        if (div == 0) {
+            state->ENV_DIVIDER_COUNT = 1;
+            switch (this->GET_ENV_ENUM()) {
+                case 0: {
+                    ENV_VP = 0xffff;
+                    SET_ENV_ENUM(1);
+                    return;
+                }
+                case 1: {
+                    ENV_VP = adsr.SL;
+                    SET_ENV_ENUM(2);
+                    return;
+                }
+                case 2: {
+                    ENV_VP = 0;
+                    return;
+                }
+                case 3: {
+                    ENV_VP = 0;
+                    return;
+                }
+                default: return;
+            }
+        }
+
+        if (div == 0xffff) return;
+
+        if (div < state->ENV_DIVIDER_COUNT) { state->ENV_DIVIDER_COUNT = div; }
+
+        if (--state->ENV_DIVIDER_COUNT == 0) {
+            state->ENV_DIVIDER_COUNT = div;
+            switch (this->GET_ENV_ENUM()) {
+                case 0: {
+                    ENV_VP = sat_add_u16(ENV_VP, this->GET_ENV_DIVIDER());
+                    if (ENV_VP == 0xffff) { SET_ENV_ENUM(1); state->ENV_DIVIDER_COUNT = ~adsr.DR; }
+                    break;
+                }
+                case 1: {
+                    ENV_VP = sat_sub_u16(ENV_VP, this->GET_ENV_DIVIDER());
+                    if (ENV_VP <= adsr.SL) { ENV_VP = adsr.SL, SET_ENV_ENUM(2); state->ENV_DIVIDER_COUNT = ~adsr.SR; }
+                    break;
+                }
+                case 2: { ENV_VP = sat_sub_u16(ENV_VP, this->GET_ENV_DIVIDER()); break; }
+                case 3: { ENV_VP = sat_sub_u16(ENV_VP, this->GET_ENV_DIVIDER()); break; }
+                default: ;
+            }
+        }
+    }
+
+
+    constexpr CSE1_REG CSE1_LFO_CONFIG::option_wavetable(const uint8_t shape, const CSE1_CONFIG_AND_TABLE &wave_table,
         const CSE1_REG index) noexcept {
         switch (shape) {
             case SINE: {
@@ -197,7 +274,7 @@ namespace CSE1_PACKED {
         }
     }
 
-    CSE1_REG CSE1_OPER_STATE::option_wavetable(const WaveTable &wave_table, const CSE1_REG index) noexcept {
+    CSE1_REG CSE1_OPER_STATE::option_wavetable(const CSE1_CONFIG_AND_TABLE &wave_table, const CSE1_REG index) noexcept {
         switch (this->FLAGS_A.GET_WAVE()) {
             case SINE: {
                 return wave_table.sine[index];
@@ -225,7 +302,7 @@ namespace CSE1_PACKED {
         }
     }
 
-    WaveTable::WaveTable(): default_volume_line(old_js_expw.data()), memPCM(nullptr), fastSpeed(0x4000) {
+    CSE1_CONFIG_AND_TABLE::CSE1_CONFIG_AND_TABLE(): default_volume_line(1), memPCM(nullptr), fastSpeed(0x4000), chipType(1), not_fm(false) {
         for (size_t i = 0; i < sine.size(); i++) {
             sine[i] = static_cast<CSE1_REG>(std::sin(static_cast<long double>(i)*2*PI/65536.0L)*32767.0+32767.0)&0xffff;
         }
@@ -249,28 +326,42 @@ namespace CSE1_PACKED {
         }
     }
 
-    void WaveTable::reset() noexcept {
-        for (size_t i = 0; i < old_js_expw.size(); i++) {
-            old_js_expw[i] = fastSpeed != 0 ? static_cast<CSE1_REG>(
-                (std::exp(i/65535.0L * std::log(static_cast<long double>(fastSpeed)+1.0L)) - 1.0L) * 65535.0L / static_cast<long double>(fastSpeed)
-            ) & 0xffff : i;
-        }
+    void CSE1_CONFIG_AND_TABLE::reset() noexcept {
+        switch (default_volume_line) {
+            case 0: {
+                for (size_t i = 0; i < volume_line.size(); i++) {
+                    volume_line[i] = fastSpeed != 0 ? static_cast<CSE1_REG>(
+                        (std::exp(i/65535.0L * std::log(static_cast<long double>(fastSpeed)+1.0L)) - 1.0L) * 65535.0L / static_cast<long double>(fastSpeed)
+                    ) & 0xffff : i;
+                }
+                break;
+            }
 
-        for (size_t i = 0; i < real_volume_line.size(); i++) {
-            const long double tl = (65535.0L-i) / 16383.0L*fastSpeed/16384.0L;
-            const long double volume = std::pow(10.0L, -tl);
-            real_volume_line[i] = static_cast<CSE1_REG>(volume * 65535.0L) & 0xffff;
-        }
+            case 1: {
+                for (size_t i = 0; i < volume_line.size(); i++) {
+                    const long double tl = (65535.0L-i) / 16383.0L*fastSpeed/16384.0L;
+                    const long double volume = std::pow(10.0L, -tl);
+                    volume_line[i] = static_cast<CSE1_REG>(volume * 65535.0L) & 0xffff;
+                }
+                break;
+            }
 
-        for (size_t i = 0; i < exp_volume_line.size(); i++) {
-            const long double tl = (65535.0L-i) / 8191.0L*fastSpeed/16384.0L;
-            const long double volume = std::exp(-tl);
-            exp_volume_line[i] = static_cast<CSE1_REG>(volume * 65535.0L) & 0xffff;
-        }
+            case 3: {
+                for (size_t i = 0; i < volume_line.size(); i++) {
+                    const long double tl = (65535.0L-i) / 8191.0L*fastSpeed/16384.0L;
+                    const long double volume = std::exp(-tl);
+                    volume_line[i] = static_cast<CSE1_REG>(volume * 65535.0L) & 0xffff;
+                }
+                break;
+            }
 
-        for (size_t i = 0; i < linear_volume_line.size(); i++) {
-            linear_volume_line[i] = static_cast<CSE1_REG>(std::max(std::min(static_cast<long double>(fastSpeed)*(static_cast<long double>(i)-65535.0l)/256.0l+65535.0l, 65535.0l), .0l));
+            case 2:
+            default: {
+                for (size_t i = 0; i < volume_line.size(); i++) {
+                    volume_line[i] = static_cast<CSE1_REG>(std::max(std::min(static_cast<long double>(fastSpeed)*(static_cast<long double>(i)-65535.0l)/256.0l+65535.0l, 65535.0l), .0l));
+                }
+                break;
+            }
         }
     }
-
 }

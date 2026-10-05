@@ -1766,7 +1766,7 @@ void DivInstrument::writeFeatureSE(SafeWriter* w) {
   w->write(&bin, sizeof(CSE1_PACKED::CSE1_CHANNEL_REGISTERS));
   for (const auto & i : cse1.op) {
     w->write(&i.sample_tables, sizeof(DivInstrumentCSE1::Operator::sample_tables));
-    w->writeC(i.useSample);
+    w->writeC(i.useSample | (i.pitchMode<<1));
   }
   FEATURE_END;
 }
@@ -2081,8 +2081,6 @@ void DivInstrument::putInsData2(SafeWriter* w, bool fui, const DivSong* song, bo
         break;
       case DIV_INS_CSE1:
         featureSE=true;
-        featureSM=true;
-        if (amiga.useSample) featureSL=true;
         break;
       case DIV_INS_MAX:
         break;
@@ -3447,7 +3445,9 @@ void DivInstrument::readFeatureSE(SafeReader& reader, short version) {
   CSE1_REG_INS_SYNC::reg_to_ins(&bin, &cse1);
   for (auto & i : cse1.op) {
     reader.read(&i.sample_tables, sizeof(DivInstrumentCSE1::Operator::sample_tables));
-    i.useSample = reader.readC();
+    const uint8_t flags = reader.readC();
+    i.useSample = flags & 1;
+    i.pitchMode = (flags>>1)&3;
   }
   READ_FEAT_END;
 }
@@ -3534,7 +3534,7 @@ DivDataErrors DivInstrument::readInsDataNew(SafeReader& reader, short version, b
       readFeatureS3(reader,version);
     } else if (memcmp(featCode,"KT",2)==0) { // Klattsch
       readFeatureKT(reader,version);
-    } else if (memcmp(featCode,"SE",2)==0) { // SGU
+    } else if (memcmp(featCode,"SE",2)==0) { // CSE
       readFeatureSE(reader,version);
     } else {
       if (song==NULL && (memcmp(featCode,"SL",2)==0 || (memcmp(featCode,"WL",2)==0) || (memcmp(featCode,"LS",2)==0) || (memcmp(featCode,"LW",2)==0))) {

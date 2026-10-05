@@ -1100,12 +1100,13 @@ struct DivInstrumentCSE1 {
 
     bool default_adsr_table {};
     bool default_out_and_wt_table{};
-    bool fixed{};
+    uint8_t pitchMode{};
     bool rev{};
     bool am1{};
     bool am2{};
     bool fm1{};
     bool fm2{};
+    bool useSample{};
 
     unsigned int startP{}, endP{};
     struct SampleTables {
@@ -1113,8 +1114,7 @@ struct DivInstrumentCSE1 {
       unsigned short outTable;
       unsigned short ADSRTable;
       unsigned short WaveTableTable;
-    } sample_tables;
-    bool useSample;
+    } sample_tables {};
 
     unsigned char aloop{};
     unsigned char dloop{};
@@ -1135,8 +1135,8 @@ struct DivInstrumentCSE1 {
 
     unsigned int pitch;
 
-    unsigned char negLeft[CSE1_OPER_NUMBER+1];
-    unsigned char negRight[CSE1_OPER_NUMBER+1];
+    bool negLeft[CSE1_OPER_NUMBER+1];
+    bool negRight[CSE1_OPER_NUMBER+1];
     unsigned char default_out_table;
 
     unsigned int outLTable;

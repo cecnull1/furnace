@@ -76,6 +76,9 @@ void DivPlatformCSE1::tick(bool sysTick) {
       chan[i].freq=chan[i].calcFreq();
 
       if (chan[i].keyOn) {
+        for (auto& op : chip.CHANNELS.CHANNEL[i].OPS.OP)  {
+          op.ENV_STATE.SET_ENV_ENUM(0);
+        }
         chan[i].m_outL = 0xffff;
         chan[i].m_outR = 0xffff;
         chan[i].m_outA = 0xffff;
@@ -88,7 +91,6 @@ void DivPlatformCSE1::tick(bool sysTick) {
         chan[i].keyOff=false;
       }
     }
-
     if (NEW_ARP_STRAT) {
       chan[i].handleArp();
     } else if (chan[i].std.arp.had && !chan[i].rawFreq) {
@@ -119,6 +121,28 @@ void DivPlatformCSE1::tick(bool sysTick) {
       chan[i].m_outA = scaleVolume * (val < 0xffff ? val : 0x10000);
     }
 
+    for (size_t opi = 0; opi < CSE1_OPER_NUMBER ; opi++) {
+      switch (chan[i].state.instrument.op[opi].pitchMode) {
+        case 2: {
+          const CSE1_PACKED::CSE1_DOUBLE_REG freq = pitchTable.get(
+            chan[i].baseFreq, chan[i].pitch+chan[i].state.instrument.op[opi].lpitch-32768, chan[i].pitch2
+            );
+          chip.CHANNELS.CHANNEL[i].OPS.OP[opi].PITCH = freq;
+          break;
+        }
+        case 3: {
+          const auto pT = samplePitchTable.get(chan[i].state.instrument.op[opi].sample_tables.sampleIndex);
+          if (pT == nullptr) break;
+          const CSE1_PACKED::CSE1_DOUBLE_REG freq = pT->get(
+            chan[i].baseFreq, chan[i].pitch+chan[i].state.instrument.op[opi].lpitch-32768, chan[i].pitch2
+          );
+          chip.CHANNELS.CHANNEL[i].OPS.OP[opi].PITCH = freq;
+          break;
+        }
+        default: break;
+      }
+    }
+
     const auto originOutL = static_cast<uint64_t>(chan[i].outL) * chan[i].m_outA>>16;
     const auto originOutR = static_cast<uint64_t>(chan[i].outR) * chan[i].m_outA>>16;
     const auto outLbuf = chan[i].vol < 0xff ? (originOutL*chan[i].m_outL>>16)*chan[i].vol>>8 : (originOutL*chan[i].m_outL>>16);
@@ -141,6 +165,7 @@ int DivPlatformCSE1::dispatch(DivCommand c) {
     case DIV_CMD_NOTE_ON: {
       DivInstrument* ins=parent->getIns(chan[c.chan].ins,DIV_INS_CSE1);
       chan[c.chan].active=true;
+      chan[c.chan].keyOn=true;
       {
         switch (ins->type) {
           case DIV_INS_YMZ280B:
@@ -200,6 +225,7 @@ int DivPlatformCSE1::dispatch(DivCommand c) {
             }
             chan[c.chan].outL = cse1.out.outLeft;
             chan[c.chan].outR = cse1.out.outRight;
+            this->chan[c.chan].state.instrument = cse1;
             CSE1_REG_INS_SYNC::ins_to_reg(&cse1, &chip.CHANNELS.CHANNEL[c.chan]);
             break;
           }
@@ -207,8 +233,7 @@ int DivPlatformCSE1::dispatch(DivCommand c) {
           case DIV_INS_CSE1:
           default: {
             const auto& cse1 = ins->cse1;
-            auto cse1_sync = cse1;  // 复制，因为要改 startP / endP
-            this->chan[c.chan].state.instrument = cse1;
+            auto cse1_sync = cse1;
             chan[c.chan].pitchTable = &pitchTable;
 
             for (int op = 0; op < CSE1_OPER_NUMBER; op++) {
@@ -240,6 +265,7 @@ int DivPlatformCSE1::dispatch(DivCommand c) {
             chan[c.chan].outL = cse1.out.outLeft;
             chan[c.chan].outR = cse1.out.outRight;
             if (c.value!=DIV_NOTE_NULL) {
+              chan[c.chan].note = c.value;
               chan[c.chan].baseFreq=chan[c.chan].calcBaseFreq(c.value);
               chan[c.chan].freqChanged=true;
             }
@@ -475,24 +501,10 @@ void DivPlatformCSE1::setFlags(const DivConfig& flags) {
   for (int i = 0; i < chans; i++) {
     oscBuf[i]->setRate(rate);
   }
-  switch (flags.getInt("defaultVolumeTableType",1)) {
-    case 0:
-      waveTable.default_volume_line = waveTable.old_js_expw.data();
-      break;
-    case 1:
-      waveTable.default_volume_line = waveTable.real_volume_line.data();
-      break;
-    case 2:
-      waveTable.default_volume_line = waveTable.linear_volume_line.data();
-      break;
-    case 3:
-      waveTable.default_volume_line = waveTable.exp_volume_line.data();
-      break;
-    default:
-      waveTable.default_volume_line = waveTable.old_js_expw.data();
-      break;
-  }
-  waveTable.fastSpeed = flags.getInt("defaultVolumeTableSpeed",0x0100);;
+  waveTable.default_volume_line = flags.getInt("defaultVolumeTableType",1);
+  waveTable.fastSpeed = flags.getInt("defaultVolumeTableSpeed",0x4000);
+  waveTable.not_fm = flags.getBool("not_fm",false);
+  waveTable.chipType = flags.getInt("revision",1);
   waveTable.reset();
   notifyPitchTable();
 }
