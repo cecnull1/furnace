@@ -232,36 +232,8 @@ int DivPlatformCSE1::dispatch(DivCommand c) {
 
           case DIV_INS_CSE1:
           default: {
-            const auto& cse1 = ins->cse1;
-            auto cse1_sync = cse1;
+            auto cse1 = ins->cse1;
             chan[c.chan].pitchTable = &pitchTable;
-
-            for (int op = 0; op < CSE1_OPER_NUMBER; op++) {
-              const uint16_t sampleIndex = cse1.op[op].sample_tables.sampleIndex;
-              if (cse1.op[op].useSample && sampleIndex < parent->song.sampleLen) {
-                DivSample* s = parent->getSample(sampleIndex);
-                if (s && s->samples > 0) {
-                  const uint32_t base = sampleOff[sampleIndex];
-                  if (cse1.op[op].wave == CSE1_PACKED::WAVE_TABLE_TYPE::OPER_WAVETABLE_SAMPLE) {
-                    cse1_sync.op[op].startP = base;
-                    continue;
-                  }
-                  if (s->loop) {
-                    cse1_sync.op[op].startP = base + s->getLoopStartPosition(DIV_SAMPLE_DEPTH_16BIT) / 2;
-                    cse1_sync.op[op].endP = base + s->getLoopEndPosition(DIV_SAMPLE_DEPTH_16BIT) / 2 - 1;
-                    cse1_sync.op[op].phase = base;
-                  } else {
-                    cse1_sync.op[op].startP = base;
-                    cse1_sync.op[op].endP = base + (s->getCurBufLen() + 1) / 2 - 1;
-                    cse1_sync.op[op].phase = base;
-                  }
-                }
-              }
-            }
-
-            this->chan[c.chan].state.instrument = cse1_sync;
-            CSE1_REG_INS_SYNC::ins_to_reg(&cse1_sync, &chip.CHANNELS.CHANNEL[c.chan]);
-
             chan[c.chan].outL = cse1.out.outLeft;
             chan[c.chan].outR = cse1.out.outRight;
             if (c.value!=DIV_NOTE_NULL) {
@@ -269,6 +241,32 @@ int DivPlatformCSE1::dispatch(DivCommand c) {
               chan[c.chan].baseFreq=chan[c.chan].calcBaseFreq(c.value);
               chan[c.chan].freqChanged=true;
             }
+
+            for (auto & op : cse1.op) {
+              const uint16_t sampleIndex = op.sample_tables.sampleIndex;
+              if (op.useSample && sampleIndex < parent->song.sampleLen) {
+                DivSample* s = parent->getSample(sampleIndex);
+                if (s && s->samples > 0) {
+                  const uint32_t base = sampleOff[sampleIndex];
+                  if (op.wave == CSE1_PACKED::WAVE_TABLE_TYPE::OPER_WAVETABLE_SAMPLE) {
+                    op.startP = base;
+                    continue;
+                  }
+                  if (s->loop) {
+                    op.startP = base + s->getLoopStartPosition(DIV_SAMPLE_DEPTH_16BIT) / 2;
+                    op.endP = base + s->getLoopEndPosition(DIV_SAMPLE_DEPTH_16BIT) / 2 - 1;
+                    op.phase = base;
+                  } else {
+                    op.startP = base;
+                    op.endP = base + (s->getCurBufLen() + 1) / 2 - 1;
+                    op.phase = base;
+                  }
+                }
+              }
+            }
+
+            this->chan[c.chan].state.instrument = cse1;
+            CSE1_REG_INS_SYNC::ins_to_reg(&cse1, &chip.CHANNELS.CHANNEL[c.chan]);
             break;
           }
         }
@@ -414,47 +412,43 @@ bool DivPlatformCSE1::isSampleLoaded(int index, int sample) {
 
 void DivPlatformCSE1::renderSamples(int sysID) {
     memset(pcmMem, 0, MEMORY_SIZE * sizeof(CSE1_PACKED::CSE1_REG));
-
     memset(sampleOff, 0, 32768 * sizeof(uint32_t));
     memset(sampleLoaded, 0, 32768 * sizeof(bool));
 
     memCompo = DivMemoryComposition();
     memCompo.name = "Sample RAM";
 
-    size_t memPos = 0;
-    for (int i = 0; i < parent->song.sampleLen; i++) {
-        DivSample* s = parent->song.sample[i];
-
-        if (!s->renderOn[0][sysID]) {
-            sampleOff[i] = 0;
-            continue;
-        }
-
-        const uint32_t length = s->getCurBufLen();
-        const uint32_t wordLength = (length + 1) / 2;
-        const auto* src = static_cast<unsigned char*>(s->getCurBuf());
-
-        const uint32_t actualWordLength = MIN((getSampleMemCapacity(0) - memPos), wordLength);
-
-        if (actualWordLength > 0) {
-          for (size_t j = 0; j < actualWordLength; j++) {
-            const uint16_t sample = (src[j * 2 + 1] << 8) | src[j * 2];
-            pcmMem[memPos + j] = sample + 32768;
-          }
-          sampleOff[i] = memPos;
-          memCompo.entries.push_back(DivMemoryEntry(
-          DIV_MEMORY_SAMPLE, "Sample", i, memPos, memPos + actualWordLength
-          ));
-          memPos += actualWordLength;
-        }
-
-        if (actualWordLength < wordLength) {
-            logW("out of CSE-1 PCM memory for sample %d!", i);
-            break;
-        }
-
-        sampleLoaded[i] = true;
+  size_t memPos=0;
+  for (int i=0; i<parent->song.sampleLen; i++) {
+    DivSample* s=parent->song.sample[i];
+    if (!s->renderOn[0][sysID]) {
+      sampleOff[i]=0;
+      continue;
     }
+
+    const unsigned int length=s->getCurBufLen();
+    const auto* src=static_cast<unsigned char *>(s->getCurBuf());
+    const unsigned int actualLength=MIN(getSampleMemCapacity(0)-memPos,length);
+    if (actualLength>0) {
+      if (s->depth==DIV_SAMPLE_DEPTH_16BIT) {
+        for (unsigned int si = 0; si < actualLength>>1; si++) {
+            pcmMem[memPos+si] = reinterpret_cast<const uint16_t*>(src)[si]^0x8000;
+        }
+      } else {
+        for (unsigned int si = 0; si < actualLength; si++) {
+          pcmMem[memPos+si] = (static_cast<uint16_t>(src[si]^0x80)<<8)|static_cast<uint16_t>(src[si]^0x80);
+        }
+      }
+      sampleOff[i]=memPos;
+      memCompo.entries.push_back(DivMemoryEntry(DIV_MEMORY_SAMPLE,"Sample",i,memPos,memPos+length));
+      memPos+=length;
+    }
+    if (actualLength<length) {
+      logW("out of CSE-1 PCM memory for sample %d!",i);
+      break;
+    }
+    sampleLoaded[i]=true;
+  }
 
     sysIDCache = sysID;
 
