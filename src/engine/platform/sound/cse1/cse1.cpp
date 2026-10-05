@@ -19,7 +19,7 @@ namespace CSE1_PACKED {
     }
 
     CSE1_DOUBLE_SIG_REG CSE1::CSE1_GET_SAMPLE(uint8_t ch) const noexcept {
-        int64_t ret = (static_cast<int64_t>(this->CHANNELS.OUTS_L[ch]) + static_cast<int64_t>(this->CHANNELS.OUTS_R[ch]))>>1;
+        int64_t ret = (static_cast<int64_t>(this->CHANNELS.OUTS_L[ch]) + static_cast<int64_t>(this->CHANNELS.OUTS_R[ch]));
         if (ret < INT16_MIN) ret = INT16_MIN;
         if (ret > INT16_MAX) ret = INT16_MAX;
         return static_cast<int32_t>(ret);
@@ -76,8 +76,8 @@ namespace CSE1_PACKED {
             op.clock(wave_table, State, fm1pitch, fm2pitch);
             op.PITCH+=State->SPEC.SWEEP_FREQS[opi].FREQ_SPEED;
             const auto ov = !op.FLAGS_A.GET_NOT_DEFAULT_OUT_AND_WAVE_TABLE_TABLE() ? op.VFB : wave_table.memPCM[op.OUT_TABLE+op.VFB];
-            const CSE1_DOUBLE_SIG_REG LB = (((ov-0x8000)*State->OUT.IN_L.MI[opi]>>16)*volume>>16)>>2;
-            const CSE1_DOUBLE_SIG_REG RB = (((ov-0x8000)*State->OUT.IN_R.MI[opi]>>16)*volume>>16)>>2;
+            const CSE1_DOUBLE_SIG_REG LB = (((ov-0x8000)*State->OUT.IN_L.MI[opi]>>16)*volume>>16)>>3;
+            const CSE1_DOUBLE_SIG_REG RB = (((ov-0x8000)*State->OUT.IN_R.MI[opi]>>16)*volume>>16)>>3;
 
             LeftBuf += (State->OUT.FLAGS_A.GET_NEG_LEFT() >> opi)&1 ? -LB : LB;
             RightBuf += (State->OUT.FLAGS_A.GET_NEG_RIGHT() >> opi)&1 ? -RB : RB;
