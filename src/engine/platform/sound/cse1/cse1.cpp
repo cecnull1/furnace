@@ -8,7 +8,7 @@
 #include <cmath>
 
 namespace CSE1_PACKED {
-    constexpr long double PI = 3.1415926535897932384626433832795028841971L;
+    constexpr long double PI = 3.1415926535897932384626433832795028841971L; // 背出的PI
 
     void CSE1::hard_reset() {
         this->CHANNELS = CSE1_CHANNELS();
@@ -44,9 +44,9 @@ namespace CSE1_PACKED {
         CSE1_DOUBLE_SIG_REG LeftBuf3 = 0;
         CSE1_DOUBLE_SIG_REG RightBuf3 = 0;
         for (size_t f = 0; f < SPEC.FILTERS.size(); f++) {
-            SPEC.FILTERS[f].clock(wave_table, this, value[f], value, LeftBuf2, RightBuf2);
-            LeftBuf3 += value[f].VFB_L;
-            RightBuf3 += value[f].VFB_R;
+            SPEC.FILTERS[f].clock(value[f], value, LeftBuf2, RightBuf2);
+            LeftBuf3 += value[f].VFB_L*SPEC.FILTERS[f].OUT_L>>16;
+            RightBuf3 += value[f].VFB_R*SPEC.FILTERS[f].OUT_R>>16;
         }
 
         LeftBuf = (LeftBuf2 * wave_table.volume_line[OUT.OUT_L] >> 16) + LeftBuf3;
@@ -54,13 +54,67 @@ namespace CSE1_PACKED {
     }
 
     void CSE1_FILTER::clock(
-        const CSE1_CONFIG_AND_TABLE& wave_table,
-        const CSE1_CHANNEL_REGISTERS* state,
         CSE1_FILTER_PRIVATE& filter_private,
         const std::array<CSE1_FILTER_PRIVATE, 3>& value,
         const CSE1_DOUBLE_SIG_REG in1,
         const CSE1_DOUBLE_SIG_REG in2) const {
-        // TODO: Filter
+        CSE1_DOUBLE_SIG_REG inL = 0;
+        CSE1_DOUBLE_SIG_REG inR = 0;
+        if (this->GET_INPUTS() & 1) {
+            inL += in1;
+            inR += in2;
+        }
+        if (this->GET_INPUTS() & 2) {
+            inL += value[0].VFB_L;
+            inR += value[0].VFB_R;
+        }
+        if (this->GET_INPUTS() & 4) {
+            inL += value[1].VFB_L;
+            inR += value[1].VFB_R;
+        }
+        if (this->GET_INPUTS() & 8) {
+            inL += value[2].VFB_L;
+            inR += value[2].VFB_R;
+        }
+
+        const CSE1_REG f = this->CUTOFF;
+        const CSE1_REG q = 0x100 - this->GET_RES();
+
+        const auto lowL = filter_private.BUF_LOW_L;
+        const auto bandL = filter_private.BUF_BAND_L;
+        const auto highL = inL - lowL - ((q * bandL) >> 8);
+        const auto newLowL = lowL + ((f * bandL) >> 16);
+        const auto newBandL = bandL + ((f * highL) >> 16);
+
+
+        const auto lowR = filter_private.BUF_LOW_R;
+        const auto bandR = filter_private.BUF_BAND_R;
+        const auto highR = inR - lowR - ((q * bandR) >> 8);
+        const auto newLowR = lowR + ((f * bandR) >> 16);
+        const auto newBandR = bandR + ((f * highR) >> 16);
+
+
+        filter_private.BUF_LOW_L = newLowL;
+        filter_private.BUF_BAND_L = newBandL;
+        filter_private.BUF_LOW_R = newLowR;
+        filter_private.BUF_BAND_R = newBandR;
+
+
+        CSE1_DOUBLE_SIG_REG outL = 0;
+        CSE1_DOUBLE_SIG_REG outR = 0;
+        if (this->GET_TYPES() & 1) outL += newLowL;
+        if (this->GET_TYPES() & 2) outL += highL;
+        if (this->GET_TYPES() & 4) outL += newBandL;
+        if (this->GET_TYPES() & 1) outR += newLowR;
+        if (this->GET_TYPES() & 2) outR += highR;
+        if (this->GET_TYPES() & 4) outR += newBandR;
+        if (this->GET_TYPES() == 0) {
+            outL += inL;
+            outR += inR;
+        }
+
+        filter_private.VFB_L = outL;
+        filter_private.VFB_R = outR;
     }
 
     void CSE1_OPS::clock(const CSE1_CONFIG_AND_TABLE &wave_table, const CSE1_CHANNEL_REGISTERS* State, CSE1_DOUBLE_SIG_REG &LeftBuf, CSE1_DOUBLE_SIG_REG &RightBuf) noexcept {
@@ -105,7 +159,7 @@ namespace CSE1_PACKED {
                 (FLAGS_A.GET_FM2() ? ExtFM2AddPitch * o_pitch >> 24: 0),
                 this->FLAGS_A.GET_ML()
                 );
-        if (FLAGS_A.GET_WAVE() < 6) {
+        if (FLAGS_A.GET_WAVE() < OPER_ONESHOT_SAMPLE) {
             PHASE += this->FLAGS_A.GET_REV() ? -pitch : pitch;
         } else {
             const auto in_pitch = pitch;

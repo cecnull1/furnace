@@ -6,6 +6,8 @@
 #include "../../../engine/platform/sound/cse1/cse1.hpp"
 #include "../gui/insEdit/insEditCommon.h"
 
+// LE-Only
+
 constexpr uint64_t gen_min = 0;
 constexpr uint16_t gen_max      = 0xffff;
 constexpr uint16_t b14Bit_max      = 0x3fff;
@@ -43,80 +45,80 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
                 for (int j = 0; j < CSE1_OPER_NUMBER; j++) {
                     ImGui::PushID(j);
                     ImGui::SetNextItemWidth(-FLT_MIN);
-                    ImGui::SliderScalar(
+                    P(ImGui::SliderScalar(
                     "##MI",
                     ImGuiDataType_U16,
                     &cse1.op[i].mi[j],
                     &gen_min, &gen_max,
                     fmt::format("MI{0}: %d", j + 1).c_str()
-                    );
+                    ));
                     ImGui::PopID();
                 }
 
                 const float halfWidth = ImGui::GetContentRegionAvail().x * 0.5f;
                 ImGui::SetNextItemWidth(halfWidth);
-                ImGui::SliderScalar("##IN_LEFT",
+                P(ImGui::SliderScalar("##IN_LEFT",
                 ImGuiDataType_U16,
                 &cse1.out.inLeft[i],
                 &gen_min, &gen_max,
-                fmt::format("OUTL{0}: %d", i + 1).c_str());
+                fmt::format("OUTL{0}: %d", i + 1).c_str()));
 
                 ImGui::SameLine();
 
                 ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::SliderScalar("##IN_RIGHT",
+                P(ImGui::SliderScalar("##IN_RIGHT",
                 ImGuiDataType_U16,
                 &cse1.out.inRight[i],
                 &gen_min, &gen_max,
-                "OUTR: %d");
+                "OUTR: %d"));
 
-                ImGui::Checkbox(fmt::format("LN{0}", i + 1).c_str(), &cse1.out.negLeft[i]);
+                P(ImGui::Checkbox(fmt::format("LN{0}", i + 1).c_str(), &cse1.out.negLeft[i]));
                 ImGui::SameLine();
-                ImGui::Checkbox(fmt::format("RN{0}", i + 1).c_str(), &cse1.out.negRight[i]);
+                P(ImGui::Checkbox(fmt::format("RN{0}", i + 1).c_str(), &cse1.out.negRight[i]));
 
                 ImGui::TableNextColumn();
                 ImGui::NewLine();
 
-                ImGui::Checkbox("REV", &cse1.op[i].rev);
+                P(ImGui::Checkbox("REV", &cse1.op[i].rev));
 
-                ImGui::Checkbox("useSample", &cse1.op[i].useSample);
+                P(ImGui::Checkbox("useSample", &cse1.op[i].useSample));
 
                 if (!cse1.op[i].useSample) {
                     ImGui::SetNextItemWidth(-FLT_MIN);
-                    ImGui::SliderScalar(
+                    P(ImGui::SliderScalar(
                     "##PHASE",
                     ImGuiDataType_S32,
                     &cse1.op[i].phase,
                     &gen_min, &big_max,
                     "PHASE: %d"
-                    );
+                    ));
 
                     ImGui::SetNextItemWidth(-FLT_MIN);
-                    ImGui::SliderScalar(
+                    P(ImGui::SliderScalar(
                     "##WAVE",
                     ImGuiDataType_U8,
                     &cse1.op[i].wave,
                     &gen_min, &wave_max,
                     "WAVE: %d"
-                    );
+                    ));
 
                     ImGui::SetNextItemWidth(-FLT_MIN);
-                    ImGui::SliderScalar(
+                    P(ImGui::SliderScalar(
                     "##DUTY",
                     ImGuiDataType_U16,
                     &cse1.op[i].duty,
                     &gen_min, &gen_max,
                     "DUTY: %d"
-                    );
+                    ));
                 } else {
                     ImGui::SetNextItemWidth(-FLT_MIN);
-                    ImGui::SliderScalar(
+                    P(ImGui::SliderScalar(
                     "##SMMODE",
                     ImGuiDataType_U8,
                     &cse1.op[i].wave,
                     &wave_sample_mode_min, &wave_sample_mode_max,
                     "SMMODE: %d"
-                    );
+                    ));
 
                     String sName;
                     if (cse1.op[i].sample_tables.sampleIndex >= e->song.sampleLen) {
@@ -134,6 +136,7 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
                         for (int s = 0; s < e->song.sampleLen; s++) {
                             id = fmt::sprintf("%d: %s", s, e->song.sample[s]->name);
                             if (ImGui::Selectable(id.c_str(), cse1.op[i].sample_tables.sampleIndex == s)) {
+                                PARAMETER;
                                 cse1.op[i].sample_tables.sampleIndex = s;
                             }
                         }
@@ -145,42 +148,40 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
                 ImGui::NewLine();
 
                 ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::SliderScalar(
+                P(ImGui::SliderScalar(
                 "##HPITCH",
                 ImGuiDataType_U16,
                 &cse1.op[i].hpitch,
                 &gen_min, &gen_max,
                 "HPITCH: %d"
-                );
+                ));
 
                 ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::SliderScalar(
+                P(ImGui::SliderScalar(
                 "##LPITCH",
                 ImGuiDataType_U16,
                 &cse1.op[i].lpitch,
                 &gen_min, &gen_max,
                 "LPITCH: %d"
-                );
+                ));
 
                 ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::SliderScalar(
+                P(ImGui::SliderScalar(
                 "##ML",
                 ImGuiDataType_U8,
                 &cse1.op[i].ml,
                 &gen_min, &fourBit_max,
                 "ML: %d"
-                );
+                ));
 
                 ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::SliderScalar(
+                P(ImGui::SliderScalar(
                 "##OPN2DT",
                 ImGuiDataType_U8,
                 &cse1.op[i].dn,
                 &gen_min, &threeBit_max,
                 "OPN2DT: %d"
-                );
-
-                //ImGui::Checkbox("Fixed", &cse1.op[i].fixed);
+                ));
 
                 ImGui::Text(_("PitchMode"));
                 ImGui::SameLine();
@@ -190,76 +191,77 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
                     for (size_t s = 0; s < pitchTableMenu.size(); s++) {
                         id = pitchTableMenu[s];
                         if (ImGui::Selectable(id.c_str(), cse1.op[i].pitchMode == s)) {
+                            PARAMETER;
                             cse1.op[i].pitchMode = s;
                         }
                     }
                     ImGui::EndCombo();
                 }
 
-                ImGui::Checkbox("AM1", &cse1.op[i].am1);
+                P(ImGui::Checkbox("AM1", &cse1.op[i].am1));
                 ImGui::SameLine();
-                ImGui::Checkbox("AM2", &cse1.op[i].am2);
+                P(ImGui::Checkbox("AM2", &cse1.op[i].am2));
 
-                ImGui::Checkbox("FM1", &cse1.op[i].fm1);
+                P(ImGui::Checkbox("FM1", &cse1.op[i].fm1));
                 ImGui::SameLine();
-                ImGui::Checkbox("FM2", &cse1.op[i].fm2);
+                P(ImGui::Checkbox("FM2", &cse1.op[i].fm2));
 
                 ImGui::TableNextColumn();
                 ImGui::NewLine();
 
                 ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::SliderScalar(
+                P(ImGui::SliderScalar(
                 "##AR",
                 ImGuiDataType_U16,
                 &cse1.op[i].adsr.ar,
                 &gen_min, &gen_max,
                 "A: %d"
-                );
+                ));
 
                 ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::SliderScalar(
+                P(ImGui::SliderScalar(
                 "##DR",
                 ImGuiDataType_U16,
                 &cse1.op[i].adsr.dr,
                 &gen_min, &gen_max,
                 "D: %d"
-                );
+                ));
 
                 ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::SliderScalar(
+                P(ImGui::SliderScalar(
                 "##SR",
                 ImGuiDataType_U16,
                 &cse1.op[i].adsr.sr,
                 &gen_min, &gen_max,
                 "D2: %d"
-                );
+                ));
 
                 ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::SliderScalar(
+                P(ImGui::SliderScalar(
                 "##SL",
                 ImGuiDataType_U16,
                 &cse1.op[i].adsr.sl,
                 &gen_min, &gen_max,
                 "S: %d"
-                );
+                ));
 
                 ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::SliderScalar(
+                P(ImGui::SliderScalar(
                 "##RR",
                 ImGuiDataType_U16,
                 &cse1.op[i].adsr.rr,
                 &gen_min, &gen_max,
                 "R: %d"
-                );
+                ));
 
                 ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::SliderScalar(
+                P(ImGui::SliderScalar(
                 "##EDIV",
                 ImGuiDataType_U16,
                 &cse1.op[i].env_divider,
                 &gen_min, &b14Bit_max,
                 "EDIV: %d"
-                );
+                ));
 
                 ImGui::TableNextColumn();
 
@@ -290,18 +292,18 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
             ImGui::PushID("OUT");
             const float halfWidth = ImGui::GetContentRegionAvail().x * 0.5f;
             ImGui::SetNextItemWidth(halfWidth);
-            ImGui::SliderScalar("##OUT_LEFT",
+            P(ImGui::SliderScalar("##OUT_LEFT",
             ImGuiDataType_U16,
             &cse1.out.outLeft,
-            &gen_min, &gen_max, "OUTL: %d");
+            &gen_min, &gen_max, "OUTL: %d"));
 
             ImGui::SameLine();
 
             ImGui::SetNextItemWidth(-FLT_MIN);
-            ImGui::SliderScalar("##OUT_RIGHT",
+            P(ImGui::SliderScalar("##OUT_RIGHT",
                     ImGuiDataType_U16,
                     &cse1.out.outRight,
-                    &gen_min, &gen_max, "OUTR: %d");
+                    &gen_min, &gen_max, "OUTR: %d"));
 
             ImGui::PopID();
 
@@ -311,58 +313,109 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
             ImGui::PushID("SPEC");
 
             ImGui::SetNextItemWidth(-FLT_MIN);
-            ImGui::SliderScalar(
+            P(ImGui::SliderScalar(
             "##L1FREQ",
             ImGuiDataType_U8,
             &cse1.special.lfo1.freq,
             &gen_min, &twoBit_max,
             "L1FREQ: %d"
-            );
+            ));
 
             ImGui::SetNextItemWidth(-FLT_MIN);
-            ImGui::SliderScalar(
+            P(ImGui::SliderScalar(
             "##L1DEPTH",
             ImGuiDataType_U8,
             &cse1.special.lfo1.depth,
             &gen_min, &fourBit_max,
             "L1DEPTH: %d"
-            );
+            ));
 
             ImGui::SetNextItemWidth(-FLT_MIN);
-            ImGui::SliderScalar(
+            P(ImGui::SliderScalar(
             "##L1SHAPE",
             ImGuiDataType_U8,
             &cse1.special.lfo1.wave,
             &gen_min, &twoBit_max,
             "L1SHAPE: %d"
-            );
+            ));
 
             ImGui::SetNextItemWidth(-FLT_MIN);
-            ImGui::SliderScalar(
+            P(ImGui::SliderScalar(
             "##L2FREQ",
             ImGuiDataType_U8,
             &cse1.special.lfo2.freq,
             &gen_min, &twoBit_max,
             "L2FREQ: %d"
-            );
+            ));
 
             ImGui::SetNextItemWidth(-FLT_MIN);
-            ImGui::SliderScalar(
+            P(ImGui::SliderScalar(
             "##L2DEPTH",
             ImGuiDataType_U8,
             &cse1.special.lfo2.depth,
             &gen_min, &fourBit_max,
             "L2DEPTH: %d"
-            );
+            ));
 
             ImGui::SetNextItemWidth(-FLT_MIN);
-            ImGui::SliderScalar(
+            P(ImGui::SliderScalar(
             "##L2SHAPE",
             ImGuiDataType_U8,
             &cse1.special.lfo2.wave,
             &gen_min, &twoBit_max,
             "L2SHAPE: %d"
-            );
+            ));
+
+            for (int i = 0; i < 3; i++) {
+                ImGui::TableNextColumn();
+                ImGui::Text("FILTER %d", i+1);
+                ImGui::PushID(i);
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                P(ImGui::SliderScalar(
+                    "##CUTOFF",
+                    ImGuiDataType_U16,
+                    &cse1.special.filter[i].cutoff,
+                    &gen_min, &gen_max,
+                    "CUTOFF: %d"
+                ));
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                P(ImGui::SliderScalar(
+                    "##RES",
+                    ImGuiDataType_U8,
+                    &cse1.special.filter[i].resonance,
+                    &gen_min, &gen_max,
+                    "RES: %d"
+                ));
+                const float halfWidth_f = ImGui::GetContentRegionAvail().x * 0.5f;
+                ImGui::SetNextItemWidth(halfWidth_f);
+                P(ImGui::SliderScalar("##FOUTL",
+                ImGuiDataType_U16,
+                &cse1.special.filter[i].outLeft,
+                &gen_min, &gen_max, "OUTL: %d"));
+
+                ImGui::SameLine();
+
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                P(ImGui::SliderScalar("##FOUTR",
+                        ImGuiDataType_U16,
+                        &cse1.special.filter[i].outRight,
+                        &gen_min, &gen_max, "OUTR: %d"));
+
+                P(ImGui::Checkbox("IN OUT", &cse1.special.filter[i].in_out));
+                ImGui::SameLine();
+                P(ImGui::Checkbox("IN F1 ", &cse1.special.filter[i].in_f1));
+
+                P(ImGui::Checkbox("IN F2 ", &cse1.special.filter[i].in_f2));
+                ImGui::SameLine();
+                P(ImGui::Checkbox("IN F3 ", &cse1.special.filter[i].in_f3));
+
+                P(ImGui::SliderScalar("##FTYPE",
+                ImGuiDataType_U8,
+                &cse1.special.filter[i].types,
+                &gen_min, &threeBit_max, "TYPE: %d"));
+
+                ImGui::PopID();
+            }
 
             ImGui::PopID();
             ImGui::EndTable();

@@ -1152,14 +1152,18 @@ struct DivInstrumentCSE1 {
     struct Filter {
       unsigned short cutoff;
       unsigned char resonance;
-      unsigned char types;
+      bool in_out;
+      bool in_f1;
+      bool in_f2;
+      bool in_f3;
       unsigned short outLeft;
       unsigned short outRight;
+      uint8_t types;
 
       Filter():
       cutoff(0xFFFFu), resonance(0),
-      types(0),
-      outLeft(), outRight() {}
+      in_out(), in_f1(), in_f2(), in_f3(),
+      outLeft(), outRight(), types() {}
     };
 
     Filter filter[3];

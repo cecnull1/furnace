@@ -60,6 +60,16 @@ namespace CSE1_REG_INS_SYNC {
         }
         reg->OUT.FLAGS_A.SET_NEG_LEFT(buf_neg_l);
         reg->OUT.FLAGS_A.SET_NEG_RIGHT(buf_neg_r);
+
+        for (size_t i = 0; i < reg->SPEC.FILTERS.size(); i++) {
+            const auto& insf = ins->special.filter[i];
+            reg->SPEC.FILTERS[i].OUT_L = insf.outLeft;
+            reg->SPEC.FILTERS[i].OUT_R = insf.outRight;
+            reg->SPEC.FILTERS[i].CUTOFF = insf.cutoff;
+            reg->SPEC.FILTERS[i].SET_RES(insf.resonance);
+            reg->SPEC.FILTERS[i].SET_TYPES(insf.types);
+            reg->SPEC.FILTERS[i].SET_INPUTS(insf.in_out | (insf.in_f1 << 1) | (insf.in_f2 << 2) | (insf.in_f3 << 3));
+        }
     }
 
     void reg_to_ins(const CSE1_PACKED::CSE1_CHANNEL_REGISTERS *reg, DivInstrumentCSE1 *ins) {
@@ -113,5 +123,19 @@ namespace CSE1_REG_INS_SYNC {
         ins->special.lfo2.freq = reg->SPEC.LFO_CONFIG.GET_FREQ2();
         ins->special.lfo2.depth = reg->SPEC.LFO_CONFIG.GET_DEPTH2();
         ins->special.lfo2.wave = reg->SPEC.LFO_CONFIG.GET_SHAPE2();
+
+        for (size_t i = 0; i < reg->SPEC.FILTERS.size(); i++) {
+            auto& insf = ins->special.filter[i];
+            insf.resonance = reg->SPEC.FILTERS[i].GET_RES();
+            insf.types = reg->SPEC.FILTERS[i].GET_TYPES();
+            insf.outLeft = reg->SPEC.FILTERS[i].OUT_L;
+            insf.outRight = reg->SPEC.FILTERS[i].OUT_R;
+            insf.cutoff = reg->SPEC.FILTERS[i].CUTOFF;
+            const auto inputs = reg->SPEC.FILTERS[i].GET_INPUTS();
+            insf.in_out = (inputs>>0)&1;
+            insf.in_f1 = (inputs>>1)&1;
+            insf.in_f2 = (inputs>>2)&1;
+            insf.in_f3 = (inputs>>3)&1;
+        }
     }
 }

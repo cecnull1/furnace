@@ -919,12 +919,18 @@ src/engine/platform/multipcm.cpp
 src/engine/platform/pcmdac.cpp
 src/engine/platform/dummy.cpp
 
-src/engine/platform/cse1.cpp
-src/engine/platform/cse1.h
 src/engine/platform/sound/cse1/cse1.hpp
 src/engine/platform/sound/cse1/cse1.cpp
 src/engine/platform/sound/cse1/utils.cpp
 src/engine/platform/sound/cse1/utils.h
+        src/engine/platform/sound/cse1/csmg1.cpp
+        src/engine/platform/sound/cse1/csmg1.h
+        src/engine/platform/cse1.cpp
+        src/engine/platform/cse1.h
+        src/engine/platform/cse1_sync_utils.cpp
+        src/engine/platform/cse1_sync_utils.h
+        src/engine/platform/csmg1.cpp
+        src/engine/platform/csmg1.h
 
 src/engine/export/abstract.cpp
 src/engine/export/amigaValidation.cpp
@@ -936,8 +942,6 @@ src/engine/export/grub.cpp
 
 src/engine/effect/abstract.cpp
 src/engine/effect/dummy.cpp
-        src/engine/platform/cse1_sync_utils.cpp
-        src/engine/platform/cse1_sync_utils.h
 )
 
 if (ORIG_NDS_CORE)

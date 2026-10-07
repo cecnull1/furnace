@@ -128,7 +128,7 @@ namespace CSE1_PACKED {
         CSE1_DOUBLE_REG TL_TABLE;
         CSE1_CHANNEL_FLAGS_A FLAGS_A;
         CSE1_REG OUT_R;
-        CSE1_DOUBLE_REG ADSR_TABLE;
+        CSE1_DOUBLE_REG dummy3;
         CSE1_DOUBLE_REG OUT_TABLE_R;
     };
 
@@ -137,8 +137,8 @@ namespace CSE1_PACKED {
         CSE1_REG FILTER_INFO;
         CSE1_BIT_FIELD_MEMBER(TYPES, CSE1_REG, 0, 3, FILTER_INFO)
 
-        void clock(const CSE1_CONFIG_AND_TABLE &wave_table, const CSE1_CHANNEL_REGISTERS *state, CSE1_FILTER_PRIVATE &filter_private, const std::array<
-            CSE1_FILTER_PRIVATE, 3> &value, CSE1_DOUBLE_SIG_REG
+        void clock(CSE1_FILTER_PRIVATE &filter_private, const std::array<CSE1_FILTER_PRIVATE, 3>
+            &value, CSE1_DOUBLE_SIG_REG
             in1, CSE1_DOUBLE_SIG_REG in2) const;
 
         CSE1_BIT_FIELD_MEMBER(INPUTS, CSE1_REG, 3, 4, FILTER_INFO)
@@ -237,9 +237,9 @@ namespace CSE1_PACKED {
         void hard_reset();
     };
 
-    static CSE1_DOUBLE_REG MULT_CALC(CSE1_DOUBLE_REG left, uint8_t right) noexcept;
-    static CSE1_REG BIT_EX(bool v) noexcept;
-    static CSE1_DOUBLE_REG BIT_EX_32(bool v) noexcept;
+    CSE1_DOUBLE_REG MULT_CALC(CSE1_DOUBLE_REG left, uint8_t right) noexcept;
+    CSE1_REG BIT_EX(bool v) noexcept;
+    CSE1_DOUBLE_REG BIT_EX_32(bool v) noexcept;
 }
 
 #undef CSE1_BIT_FIELD_MEMBER
