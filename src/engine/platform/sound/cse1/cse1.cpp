@@ -200,7 +200,7 @@ namespace CSE1_PACKED {
 
         if (FLAGS_A.GET_WAVE() < 6) {
             const CSE1_REG wv = option_wavetable(wave_table, add_phase&0xffff);
-            VFB = ((!FLAGS_A.GET_NOT_DEFAULT_OUT_AND_WAVE_TABLE_TABLE() ? wv : wave_table.memPCM[WAVE_TABLE_TABLE+wv]^0x8000)^0x8000)+1;
+            VFB = (!FLAGS_A.GET_NOT_DEFAULT_OUT_AND_WAVE_TABLE_TABLE() ? wv : wave_table.memPCM[WAVE_TABLE_TABLE+wv]^0x8000)^0x8000;
         } else {
             VFB = wave_table.memPCM[PHASE];
         }
@@ -329,13 +329,13 @@ namespace CSE1_PACKED {
     CSE1_REG CSE1_OPER_STATE::option_wavetable(const CSE1_CONFIG_AND_TABLE &wave_table, const CSE1_REG index) noexcept {
         switch (this->FLAGS_A.GET_WAVE()) {
             case SINE: {
-                return wave_table.sine[index];
+                return wave_table.sine[index]+1;
             }
             case TRIANGLE: {
-                return wave_table.triangle[index];
+                return wave_table.triangle[index]+1;
             }
             case SQUARE: {
-                return 0xffff-(index>this->DUTY);
+                return BIT_EX(index>this->DUTY);
             }
             case SAW: {
                 return index;
@@ -345,10 +345,10 @@ namespace CSE1_PACKED {
                     this->PHASE &= 0x0fffffff;
                     this->DUTY = (this->DUTY >> 1) | (((this->DUTY ^ (this->DUTY >> 2) ^ (this->DUTY >> 3) ^ (this->DUTY >> 5)) & 1) << 15);
                 }
-                return 0xffff-(this->DUTY & 1);
+                return BIT_EX(this->DUTY & 1);
             }
             case OPER_WAVETABLE_SAMPLE: {
-                return (wave_table.memPCM[index+START_PHASE]^0x8000)-1;
+                return wave_table.memPCM[index+START_PHASE]^0x8000;
             }
             default: return 0;
         }
