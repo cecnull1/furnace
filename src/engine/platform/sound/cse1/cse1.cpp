@@ -129,8 +129,8 @@ namespace CSE1_PACKED {
             op.clock(wave_table, State, fm1pitch, fm2pitch);
             op.PITCH+=State->SPEC.SWEEP_FREQS[opi].FREQ_SPEED;
             const auto ov = !op.FLAGS_A.GET_NOT_DEFAULT_OUT_AND_WAVE_TABLE_TABLE() ? op.VFB : wave_table.memPCM[op.OUT_TABLE+op.VFB];
-            const CSE1_DOUBLE_SIG_REG LB = (static_cast<int16_t>(ov)*State->OUT.IN_L.MI[opi]>>16)>>3;
-            const CSE1_DOUBLE_SIG_REG RB = (static_cast<int16_t>(ov)*State->OUT.IN_R.MI[opi]>>16)>>3;
+            const CSE1_DOUBLE_SIG_REG LB = (bit_cast<int16_t>(ov)*State->OUT.IN_L.MI[opi]>>16)>>3;
+            const CSE1_DOUBLE_SIG_REG RB = (bit_cast<int16_t>(ov)*State->OUT.IN_R.MI[opi]>>16)>>3;
 
             LeftBuf += (State->OUT.FLAGS_A.GET_NEG_LEFT() >> opi)&1 ? -LB : LB;
             RightBuf += (State->OUT.FLAGS_A.GET_NEG_RIGHT() >> opi)&1 ? -RB : RB;
@@ -204,7 +204,7 @@ namespace CSE1_PACKED {
         } else {
             VFB = wave_table.memPCM[PHASE];
         }
-        VFB = static_cast<int16_t>(VFB) * (!FLAGS_A.GET_NOT_DEFAULT_ADSR_TABLE() ? wave_table.volume_line[ENV_STATE.ENV_VP] : wave_table.memPCM[ADSR_WAVE_TABLE+ENV_STATE.ENV_VP]) >> 16;
+        VFB = bit_cast<int16_t>(VFB) * (!FLAGS_A.GET_NOT_DEFAULT_ADSR_TABLE() ? wave_table.volume_line[ENV_STATE.ENV_VP] : wave_table.memPCM[ADSR_WAVE_TABLE+ENV_STATE.ENV_VP]) >> 16;
     }
 
     static uint16_t sat_add_u16(const uint16_t a, const uint16_t b) noexcept {
@@ -329,10 +329,10 @@ namespace CSE1_PACKED {
     CSE1_REG CSE1_OPER_STATE::option_wavetable(const CSE1_CONFIG_AND_TABLE &wave_table, const CSE1_REG index) noexcept {
         switch (this->FLAGS_A.GET_WAVE()) {
             case SINE: {
-                return wave_table.sine[index]+1;
+                return wave_table.sine[index];
             }
             case TRIANGLE: {
-                return wave_table.triangle[index]+1;
+                return wave_table.triangle[index];
             }
             case SQUARE: {
                 return BIT_EX(index>this->DUTY);
@@ -356,10 +356,10 @@ namespace CSE1_PACKED {
 
     CSE1_CONFIG_AND_TABLE::CSE1_CONFIG_AND_TABLE(): default_volume_line(1), memPCM(nullptr), fastSpeed(0x4000), chipType(1), not_fm(false) {
         for (size_t i = 0; i < sine.size(); i++) {
-            sine[i] = static_cast<CSE1_REG>(std::sin(static_cast<long double>(i)*2*PI/65536.0L)*32767.0+32767.0)&0xffff;
+            sine[i] = static_cast<CSE1_REG>(std::sin(static_cast<long double>(i)*2*PI/65536.0L)*32767.0+32768.0)&0xffff;
         }
         for (size_t i = 0; i < triangle.size(); i++) {
-            triangle[i] = static_cast<CSE1_REG>(std::asin(std::sin(static_cast<long double>(i)*2*PI/65536.0L))/PI*2*32767.0+32767.0)&0xffff;
+            triangle[i] = static_cast<CSE1_REG>(std::asin(std::sin(static_cast<long double>(i)*2*PI/65536.0L))/PI*2*32767.0+32768.0)&0xffff;
         }
 
         for (size_t i = 0; i < divider_table.size(); i++) {
