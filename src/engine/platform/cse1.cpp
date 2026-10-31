@@ -151,7 +151,13 @@ void DivPlatformCSE1::tick(bool sysTick) {
       chan[i].m_outA = scaleVolume * (val < 0xffff ? val : 0x10000);
     }
 
+
+
     for (size_t opi = 0; opi < CSE1_OPER_NUMBER ; opi++) {
+      if (chan[i].std.phaseReset.had && chan[i].std.phaseReset.val) {
+        chip.CHANNELS.CHANNEL[i].OPS.OP[opi].PHASE = chan[i].state.instrument.op[opi].phase;
+      }
+
       switch (chan[i].state.instrument.op[opi].pitchMode) {
         case 2: {
           const CSE1_PACKED::CSE1_DOUBLE_REG freq = pitchTable.get(
