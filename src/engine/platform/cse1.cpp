@@ -151,7 +151,22 @@ void DivPlatformCSE1::tick(bool sysTick) {
       chan[i].m_outA = scaleVolume * (val < 0xffff ? val : 0x10000);
     }
 
-
+    for (size_t fi = 0; fi < CSE1_FILTER_NUMBER ; fi++) {
+      chip.CHANNELS.CHANNEL[i].SPEC.FILTERS[fi].OUT_L = chan[i].std.op[fi].am.val * chan[i].vol >> 8;
+      chip.CHANNELS.CHANNEL[i].SPEC.FILTERS[fi].OUT_R = chan[i].std.op[fi].vib.val * chan[i].vol >> 8;
+      if (chan[i].std.op[fi].dr.had) { // cutoff
+        chip.CHANNELS.CHANNEL[i].SPEC.FILTERS[fi].CUTOFF = chan[i].std.op[fi].dr.val;
+      }
+      if (chan[i].std.op[fi].d2r.had) { // res
+        chip.CHANNELS.CHANNEL[i].SPEC.FILTERS[fi].SET_RES(chan[i].std.op[fi].d2r.val);
+      }
+      if (chan[i].std.op[fi].ws.had) { // types
+        chip.CHANNELS.CHANNEL[i].SPEC.FILTERS[fi].SET_TYPES(chan[i].std.op[fi].ws.val);
+      }
+      if (chan[i].std.op[fi].tl.had) { // inputs
+        chip.CHANNELS.CHANNEL[i].SPEC.FILTERS[fi].SET_INPUTS(chan[i].std.op[fi].tl.val);
+      }
+    }
 
     for (size_t opi = 0; opi < CSE1_OPER_NUMBER ; opi++) {
       if (chan[i].std.phaseReset.had && chan[i].std.phaseReset.val) {

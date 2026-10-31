@@ -437,7 +437,41 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
         ImGui::EndTabItem();
     }
 
-    for (int i = 0; i < CSE1_OPER_NUMBER; i++) {
+    /*
+    *     for (size_t fi = 0; fi < CSE1_FILTER_NUMBER ; fi++) {
+      if (chan[i].std.op[fi].am.had) { // outl
+        chip.CHANNELS.CHANNEL[i].SPEC.FILTERS[fi].OUT_L = chan[i].std.op[fi].am.val;
+      }
+      if (chan[i].std.op[fi].vib.had) { // outr
+        chip.CHANNELS.CHANNEL[i].SPEC.FILTERS[fi].OUT_R = chan[i].std.op[fi].vib.val;
+      }
+      if (chan[i].std.op[fi].dr.had) { // cutoff
+        chip.CHANNELS.CHANNEL[i].SPEC.FILTERS[fi].CUTOFF = chan[i].std.op[fi].dr.val;
+      }
+      if (chan[i].std.op[fi].d2r.had) { // res
+        chip.CHANNELS.CHANNEL[i].SPEC.FILTERS[fi].SET_RES(chan[i].std.op[fi].d2r.val);
+      }
+      if (chan[i].std.op[fi].ws.had) { // types
+        chip.CHANNELS.CHANNEL[i].SPEC.FILTERS[fi].SET_TYPES(chan[i].std.op[fi].ws.val);
+      }
+      if (chan[i].std.op[fi].tl.had) { // inputs
+        chip.CHANNELS.CHANNEL[i].SPEC.FILTERS[fi].SET_INPUTS(chan[i].std.op[fi].tl.val);
+      }
+    }
+     *
+     */
+
+    for (int i = 0; i < CSE1_FILTER_NUMBER; i++) {
+        if (ImGui::BeginTabItem(_(fmt::format("Filter {}", i+1).c_str()))) {
+            macroList.push_back(FurnaceGUIMacroDesc(_("Out L"),&ins->std.opMacros[i].amMacro,0,65535,160,uiColors[GUI_COLOR_MACRO_OTHER]));
+            macroList.push_back(FurnaceGUIMacroDesc(_("Out R"),&ins->std.opMacros[i].vibMacro,0,65535,160,uiColors[GUI_COLOR_MACRO_OTHER]));
+            macroList.push_back(FurnaceGUIMacroDesc(_("Cutoff"),&ins->std.opMacros[i].drMacro,0,65535,160,uiColors[GUI_COLOR_MACRO_FILTER]));
+            macroList.push_back(FurnaceGUIMacroDesc(_("Res"),&ins->std.opMacros[i].d2rMacro,0,255,160,uiColors[GUI_COLOR_MACRO_FILTER]));
+            macroList.push_back(FurnaceGUIMacroDesc(_("Types"),&ins->std.opMacros[i].wsMacro,0,3,80,uiColors[GUI_COLOR_MACRO_FILTER],false,nullptr,nullptr,true));
+            macroList.push_back(FurnaceGUIMacroDesc(_("Inputs"),&ins->std.opMacros[i].tlMacro,0,4,80,uiColors[GUI_COLOR_MACRO_FILTER],false,nullptr,nullptr,true));
+            drawMacros(macroList,macroEditStateMacros,ins);
+            ImGui::EndTabItem();
+        }
     }
 
     if (ImGui::BeginTabItem("About")) {

@@ -20,6 +20,7 @@
 
 #define CSE1_CHANNEL_NUMBER 9
 #define CSE1_OPER_NUMBER 6
+#define CSE1_FILTER_NUMBER 3
 
 namespace CSE1_PACKED {
     struct CSE1_OPER_STATE;
@@ -170,7 +171,7 @@ namespace CSE1_PACKED {
     };
 
     struct CSE1_SPEC {
-        std::array<CSE1_FILTER, 3> FILTERS;
+        std::array<CSE1_FILTER, CSE1_FILTER_NUMBER> FILTERS;
         std::array<CSE1_REG, 3> dummy;
         CSE1_LFO_CONFIG LFO_CONFIG;
         std::array<CSE1_SWEEP_FREQ, CSE1_OPER_NUMBER+1> SWEEP_FREQS;
