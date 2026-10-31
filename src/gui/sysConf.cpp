@@ -3056,6 +3056,10 @@ bool FurnaceGUI::drawSysConf(int chan, int sysPos, DivSystem type, DivConfig& fl
         revision=1;
         altered=true;
       }
+      if (ImGui::RadioButton("CSE-1.2 (A!Filter)",revision==2)) {
+        revision=2;
+        altered=true;
+      }
       ImGui::Unindent();
 
       int dvtt = flags.getInt("defaultVolumeTableType",1);

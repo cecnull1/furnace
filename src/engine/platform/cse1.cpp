@@ -555,7 +555,7 @@ void DivPlatformCSE1::setFlags(const DivConfig& flags) {
   waveTable.default_volume_line = flags.getInt("defaultVolumeTableType",1);
   waveTable.fastSpeed = flags.getInt("defaultVolumeTableSpeed",0x4000);
   waveTable.not_fm = flags.getBool("not_fm",false);
-  waveTable.chipType = flags.getInt("revision",1);
+  waveTable.chipType = static_cast<CSE1_PACKED::CSE1_CHIP_VERSION>(flags.getInt("revision",1));
   waveTable.reset();
   notifyPitchTable();
 }
