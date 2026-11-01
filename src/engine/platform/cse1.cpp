@@ -267,6 +267,7 @@ int DivPlatformCSE1::dispatch(DivCommand c) {
                 }
                 cse1.op[op].adsr.ar = 0xffff;
                 cse1.op[op].adsr.rr = 0xffff;
+                cse1.op[op].duty = 0;
                 cse1.op[op].env_divider = 0x1;
                 cse1.out.inLeft[op] = 0xffff;
                 cse1.out.inRight[op] = 0xffff;
@@ -295,7 +296,7 @@ int DivPlatformCSE1::dispatch(DivCommand c) {
 
             for (auto & op : cse1.op) {
               const uint16_t sampleIndex = op.sample_tables.sampleIndex;
-              if (op.useSample && sampleIndex < parent->song.sampleLen) {
+              if (op.wave >= CSE1_PACKED::OPER_WAVETABLE_SAMPLE && sampleIndex < parent->song.sampleLen) {
                 DivSample* s = parent->getSample(sampleIndex);
                 if (s && s->samples > 0) {
                   const uint32_t base = sampleOff[sampleIndex];
