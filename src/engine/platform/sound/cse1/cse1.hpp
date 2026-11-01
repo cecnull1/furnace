@@ -136,8 +136,8 @@ namespace CSE1_PACKED {
         CSE1_REG FILTER_INFO;
         CSE1_BIT_FIELD_MEMBER(TYPES, CSE1_REG, 0, 3, FILTER_INFO)
 
-        void clock_1_2(CSE1_FILTER_PRIVATE &filter_private, const std::array<CSE1_FILTER_PRIVATE, 3> &value,
-            CSE1_DOUBLE_SIG_REG in1, CSE1_DOUBLE_SIG_REG in2) const;
+        void clock_1_2(const CSE1_CONFIG_AND_TABLE &table, CSE1_FILTER_PRIVATE &filter_private,
+            const std::array<CSE1_FILTER_PRIVATE, 3> &value, CSE1_DOUBLE_SIG_REG in1, CSE1_DOUBLE_SIG_REG in2) const;
 
         void clock_1(CSE1_FILTER_PRIVATE &filter_private, const std::array<CSE1_FILTER_PRIVATE, 3>
             &value, CSE1_DOUBLE_SIG_REG
@@ -222,6 +222,7 @@ namespace CSE1_PACKED {
         std::array<CSE1_REG, 65536> sine{};
         std::array<CSE1_REG, 65536> triangle{};
         std::array<CSE1_REG, 65536> volume_line{};
+        std::array<float, 65536> cutoffTable{};
         CSE1_REG default_volume_line;
         CSE1_REG* memPCM;
         CSE1_REG fastSpeed;

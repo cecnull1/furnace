@@ -56,7 +56,7 @@ namespace CSE1_PACKED {
             }
             case CSE1_2: {
                 for (size_t f = 0; f < SPEC.FILTERS.size(); f++) {
-                    SPEC.FILTERS[f].clock_1_2(value[f], value, LeftBuf2, RightBuf2);
+                    SPEC.FILTERS[f].clock_1_2(wave_table, value[f], value, LeftBuf2, RightBuf2);
                     LeftBuf3 += static_cast<int16_t>(bit_cast<float>(value[f].VFB_L)*32767.0f)*SPEC.FILTERS[f].OUT_L>>16;
                     RightBuf3 += static_cast<int16_t>(bit_cast<float>(value[f].VFB_R)*32767.0f)*SPEC.FILTERS[f].OUT_R>>16;
                 }
@@ -69,7 +69,12 @@ namespace CSE1_PACKED {
         RightBuf = (RightBuf2 * wave_table.volume_line[OUT.OUT_R] >> 16) + RightBuf3;
     }
 
+    static constexpr float fastTanh(const float x) {
+        return x / std::sqrt(1.0f + x * x);
+    }
+
     void CSE1_FILTER::clock_1_2(
+        const CSE1_CONFIG_AND_TABLE &table,
         CSE1_FILTER_PRIVATE &filter_private,
         const std::array<CSE1_FILTER_PRIVATE, 3> &value,
         const CSE1_DOUBLE_SIG_REG in1,
@@ -93,11 +98,7 @@ namespace CSE1_PACKED {
             inR += bit_cast<float>(value[2].VFB_R);
         }
 
-        inL = std::tanh(inL);
-        inR = std::tanh(inR);
-
-        const float fc = static_cast<float>(this->CUTOFF) * (0.5f / 65536.0f);
-        const float g = std::tan(static_cast<float>(PI) * fc);
+        const float g = table.cutoffTable[this->CUTOFF];
 
         const float q = (static_cast<float>(this->GET_RES())+1.0f) * (1.0f / 16.0f);
         const float R = 1.0f / (2.0f * q);
@@ -106,7 +107,6 @@ namespace CSE1_PACKED {
         const auto s2L = bit_cast<float>(filter_private.BUF_LOW_L);
         const auto s1R = bit_cast<float>(filter_private.BUF_BAND_R);
         const auto s2R = bit_cast<float>(filter_private.BUF_LOW_R);
-
         const float denom = 1.0f + 2.0f * R * g + g * g;
 
         const float hpL = (inL - (2.0f * R + g) * s1L - s2L) / denom;
@@ -117,10 +117,10 @@ namespace CSE1_PACKED {
         const float bpR = g * hpR + s1R;
         const float lpR = g * bpR + s2R;
 
-        filter_private.BUF_BAND_L = bit_cast<CSE1_DOUBLE_SIG_REG>(std::tanh(g * hpL + bpL));
-        filter_private.BUF_LOW_L = bit_cast<CSE1_DOUBLE_SIG_REG>(std::tanh(g * bpL + lpL));
-        filter_private.BUF_BAND_R = bit_cast<CSE1_DOUBLE_SIG_REG>(std::tanh(g * hpR + bpR));
-        filter_private.BUF_LOW_R = bit_cast<CSE1_DOUBLE_SIG_REG>(std::tanh(g * bpR + lpR));
+        filter_private.BUF_BAND_L = bit_cast<CSE1_DOUBLE_SIG_REG>(fastTanh(g * hpL + bpL));
+        filter_private.BUF_LOW_L = bit_cast<CSE1_DOUBLE_SIG_REG>(fastTanh(g * bpL + lpL));
+        filter_private.BUF_BAND_R = bit_cast<CSE1_DOUBLE_SIG_REG>(fastTanh(g * hpR + bpR));
+        filter_private.BUF_LOW_R = bit_cast<CSE1_DOUBLE_SIG_REG>(fastTanh(g * bpR + lpR));
 
         float outL = 0.0f;
         float outR = 0.0f;
@@ -141,8 +141,8 @@ namespace CSE1_PACKED {
             outR += inR;
         }
 
-        filter_private.VFB_L = bit_cast<CSE1_DOUBLE_SIG_REG>(std::tanh(outL));
-        filter_private.VFB_R = bit_cast<CSE1_DOUBLE_SIG_REG>(std::tanh(outR));
+        filter_private.VFB_L = bit_cast<CSE1_DOUBLE_SIG_REG>(fastTanh(outL));
+        filter_private.VFB_R = bit_cast<CSE1_DOUBLE_SIG_REG>(fastTanh(outR));
     }
 
     void CSE1_FILTER::clock_1(
@@ -450,6 +450,9 @@ namespace CSE1_PACKED {
         }
         for (size_t i = 0; i < triangle.size(); i++) {
             triangle[i] = static_cast<CSE1_REG>(std::asin(std::sin(static_cast<long double>(i)*2*PI/65536.0L))/PI*2*32767.0+32768.0)&0xffff;
+        }
+        for (size_t i = 0; i < cutoffTable.size(); i++) {
+            cutoffTable[i] = std::tan(static_cast<float>(PI) * static_cast<float>(i) * (0.5f / 65536.0f));
         }
     }
 
