@@ -3109,6 +3109,11 @@ bool FurnaceGUI::drawSysConf(int chan, int sysPos, DivSystem type, DivConfig& fl
         altered=true;
       }
 
+      bool amigaVolumeLike = flags.getBool("amiga_volume_like",false);
+      if (ImGui::Checkbox(_("Amiga Volume Like (0-64)"),&amigaVolumeLike)) {
+        altered=true;
+      }
+
       if (altered) {
         e->lockSave([&]() {
           flags.set("defaultVolumeTableType",dvtt);
@@ -3117,6 +3122,7 @@ bool FurnaceGUI::drawSysConf(int chan, int sysPos, DivSystem type, DivConfig& fl
           flags.set("not_fm",(int)notfm);
           flags.set("revision",revision);
           flags.set("oldMixer",oldMixer);
+          flags.set("amiga_volume_like",amigaVolumeLike);
         });
       }
       break;

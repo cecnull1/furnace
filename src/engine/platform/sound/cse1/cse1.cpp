@@ -34,7 +34,7 @@ namespace CSE1_PACKED {
         }
     }
 
-    void CSE1_CHANNEL_REGISTERS::clock(const CSE1_CONFIG_AND_TABLE& wave_table, std::array<CSE1_FILTER_PRIVATE, 3>& value, CSE1_DOUBLE_SIG_REG& LeftBuf, CSE1_DOUBLE_SIG_REG& RightBuf) noexcept {
+    void CSE1_CHANNEL_REGISTERS::clock(const CSE1_CONFIG_AND_TABLE& wave_table, CSE1_FILTER_PRIVATE<3>& value, CSE1_DOUBLE_SIG_REG& LeftBuf, CSE1_DOUBLE_SIG_REG& RightBuf) noexcept {
         CSE1_DOUBLE_SIG_REG LeftBuf2 = 0;
         CSE1_DOUBLE_SIG_REG RightBuf2 = 0;
         OPS.clock(wave_table, this, LeftBuf2, RightBuf2);
@@ -48,17 +48,17 @@ namespace CSE1_PACKED {
             case CSE1_0:
             case CSE1_1: {
                 for (size_t f = 0; f < SPEC.FILTERS.size(); f++) {
-                    SPEC.FILTERS[f].clock_1(value[f], value, LeftBuf2, RightBuf2);
-                    LeftBuf3 += value[f].VFB_L*SPEC.FILTERS[f].OUT_L>>16;
-                    RightBuf3 += value[f].VFB_R*SPEC.FILTERS[f].OUT_R>>16;
+                    SPEC.FILTERS[f].clock_1(value, f, LeftBuf2, RightBuf2);
+                    LeftBuf3 += value.VFB_L[f]*SPEC.FILTERS[f].OUT_L>>16;
+                    RightBuf3 += value.VFB_R[f]*SPEC.FILTERS[f].OUT_R>>16;
                 }
                 break;
             }
             case CSE1_2: {
                 for (size_t f = 0; f < SPEC.FILTERS.size(); f++) {
-                    SPEC.FILTERS[f].clock_1_2(wave_table, value[f], value, LeftBuf2, RightBuf2);
-                    LeftBuf3 += static_cast<int16_t>(bit_cast<float>(value[f].VFB_L)*32767.0f)*SPEC.FILTERS[f].OUT_L>>16;
-                    RightBuf3 += static_cast<int16_t>(bit_cast<float>(value[f].VFB_R)*32767.0f)*SPEC.FILTERS[f].OUT_R>>16;
+                    SPEC.FILTERS[f].clock_1_2(wave_table, f, value, LeftBuf2, RightBuf2);
+                    LeftBuf3 += static_cast<int16_t>(bit_cast<float>(value.VFB_L[f])*32767.0f)*SPEC.FILTERS[f].OUT_L>>16;
+                    RightBuf3 += static_cast<int16_t>(bit_cast<float>(value.VFB_R[f])*32767.0f)*SPEC.FILTERS[f].OUT_R>>16;
                 }
                 break;
             }
@@ -75,8 +75,8 @@ namespace CSE1_PACKED {
 
     void CSE1_FILTER::clock_1_2(
         const CSE1_CONFIG_AND_TABLE &table,
-        CSE1_FILTER_PRIVATE &filter_private,
-        const std::array<CSE1_FILTER_PRIVATE, 3> &value,
+        const size_t index,
+        CSE1_FILTER_PRIVATE<3> &value,
         const CSE1_DOUBLE_SIG_REG in1,
         const CSE1_DOUBLE_SIG_REG in2) const {
         float inL = 0.0f;
@@ -86,16 +86,16 @@ namespace CSE1_PACKED {
             inR += static_cast<float>(in2) * (1.0f / 32768.0f);
         }
         if (this->GET_INPUTS() & 2) {
-            inL += bit_cast<float>(value[0].VFB_L);
-            inR += bit_cast<float>(value[0].VFB_R);
+            inL += bit_cast<float>(value.VFB_L[0]);
+            inR += bit_cast<float>(value.VFB_R[0]);
         }
         if (this->GET_INPUTS() & 4) {
-            inL += bit_cast<float>(value[1].VFB_L);
-            inR += bit_cast<float>(value[1].VFB_R);
+            inL += bit_cast<float>(value.VFB_L[1]);
+            inR += bit_cast<float>(value.VFB_R[1]);
         }
         if (this->GET_INPUTS() & 8) {
-            inL += bit_cast<float>(value[2].VFB_L);
-            inR += bit_cast<float>(value[2].VFB_R);
+            inL += bit_cast<float>(value.VFB_L[2]);
+            inR += bit_cast<float>(value.VFB_R[2]);
         }
 
         const float g = table.cutoffTable[this->CUTOFF];
@@ -103,10 +103,10 @@ namespace CSE1_PACKED {
         const float q = (static_cast<float>(this->GET_RES())+1.0f) * (1.0f / 16.0f);
         const float R = 1.0f / (2.0f * q);
 
-        const auto s1L = bit_cast<float>(filter_private.BUF_BAND_L);
-        const auto s2L = bit_cast<float>(filter_private.BUF_LOW_L);
-        const auto s1R = bit_cast<float>(filter_private.BUF_BAND_R);
-        const auto s2R = bit_cast<float>(filter_private.BUF_LOW_R);
+        const auto s1L = bit_cast<float>(value.BUF_BAND_L[index]);
+        const auto s2L = bit_cast<float>(value.BUF_LOW_L[index]);
+        const auto s1R = bit_cast<float>(value.BUF_BAND_R[index]);
+        const auto s2R = bit_cast<float>(value.BUF_LOW_R[index]);
         const float denom = 1.0f + 2.0f * R * g + g * g;
 
         const float hpL = (inL - (2.0f * R + g) * s1L - s2L) / denom;
@@ -117,10 +117,10 @@ namespace CSE1_PACKED {
         const float bpR = g * hpR + s1R;
         const float lpR = g * bpR + s2R;
 
-        filter_private.BUF_BAND_L = bit_cast<CSE1_DOUBLE_SIG_REG>(fastTanh(g * hpL + bpL));
-        filter_private.BUF_LOW_L = bit_cast<CSE1_DOUBLE_SIG_REG>(fastTanh(g * bpL + lpL));
-        filter_private.BUF_BAND_R = bit_cast<CSE1_DOUBLE_SIG_REG>(fastTanh(g * hpR + bpR));
-        filter_private.BUF_LOW_R = bit_cast<CSE1_DOUBLE_SIG_REG>(fastTanh(g * bpR + lpR));
+        value.BUF_BAND_L[index] = bit_cast<CSE1_DOUBLE_SIG_REG>(fastTanh(g * hpL + bpL));
+        value.BUF_LOW_L[index] = bit_cast<CSE1_DOUBLE_SIG_REG>(fastTanh(g * bpL + lpL));
+        value.BUF_BAND_R[index] = bit_cast<CSE1_DOUBLE_SIG_REG>(fastTanh(g * hpR + bpR));
+        value.BUF_LOW_R[index] = bit_cast<CSE1_DOUBLE_SIG_REG>(fastTanh(g * bpR + lpR));
 
         float outL = 0.0f;
         float outR = 0.0f;
@@ -141,13 +141,13 @@ namespace CSE1_PACKED {
             outR += inR;
         }
 
-        filter_private.VFB_L = bit_cast<CSE1_DOUBLE_SIG_REG>(fastTanh(outL));
-        filter_private.VFB_R = bit_cast<CSE1_DOUBLE_SIG_REG>(fastTanh(outR));
+        value.VFB_L[index] = bit_cast<CSE1_DOUBLE_SIG_REG>(fastTanh(outL));
+        value.VFB_R[index] = bit_cast<CSE1_DOUBLE_SIG_REG>(fastTanh(outR));
     }
 
     void CSE1_FILTER::clock_1(
-        CSE1_FILTER_PRIVATE& filter_private,
-        const std::array<CSE1_FILTER_PRIVATE, 3>& value,
+        CSE1_FILTER_PRIVATE<3>& value,
+        const size_t index,
         const CSE1_DOUBLE_SIG_REG in1,
         const CSE1_DOUBLE_SIG_REG in2) const {
         CSE1_DOUBLE_SIG_REG inL = 0;
@@ -157,39 +157,39 @@ namespace CSE1_PACKED {
             inR += in2;
         }
         if (this->GET_INPUTS() & 2) {
-            inL += value[0].VFB_L;
-            inR += value[0].VFB_R;
+            inL += value.VFB_L[0];
+            inR += value.VFB_R[0];
         }
         if (this->GET_INPUTS() & 4) {
-            inL += value[1].VFB_L;
-            inR += value[1].VFB_R;
+            inL += value.VFB_L[1];
+            inR += value.VFB_R[1];
         }
         if (this->GET_INPUTS() & 8) {
-            inL += value[2].VFB_L;
-            inR += value[2].VFB_R;
+            inL += value.VFB_L[2];
+            inR += value.VFB_R[2];
         }
 
         const CSE1_REG f = this->CUTOFF;
         const CSE1_REG q = 0x100 - this->GET_RES();
 
-        const auto lowL = filter_private.BUF_LOW_L;
-        const auto bandL = filter_private.BUF_BAND_L;
+        const auto lowL = value.BUF_LOW_L[index];
+        const auto bandL = value.BUF_BAND_L[index];
         const auto highL = inL - lowL - ((q * bandL) >> 8);
         const auto newLowL = lowL + ((f * bandL) >> 16);
         const auto newBandL = bandL + ((f * highL) >> 16);
 
 
-        const auto lowR = filter_private.BUF_LOW_R;
-        const auto bandR = filter_private.BUF_BAND_R;
+        const auto lowR = value.BUF_LOW_R[index];
+        const auto bandR = value.BUF_BAND_R[index];
         const auto highR = inR - lowR - ((q * bandR) >> 8);
         const auto newLowR = lowR + ((f * bandR) >> 16);
         const auto newBandR = bandR + ((f * highR) >> 16);
 
 
-        filter_private.BUF_LOW_L = newLowL;
-        filter_private.BUF_BAND_L = newBandL;
-        filter_private.BUF_LOW_R = newLowR;
-        filter_private.BUF_BAND_R = newBandR;
+        value.BUF_LOW_L[index] = newLowL;
+        value.BUF_BAND_L[index] = newBandL;
+        value.BUF_LOW_R[index] = newLowR;
+        value.BUF_BAND_R[index] = newBandR;
 
 
         CSE1_DOUBLE_SIG_REG outL = 0;
@@ -205,8 +205,8 @@ namespace CSE1_PACKED {
             outR += inR;
         }
 
-        filter_private.VFB_L = outL;
-        filter_private.VFB_R = outR;
+        value.VFB_L[index] = outL;
+        value.VFB_R[index] = outR;
     }
 
     void CSE1_OPS::clock(const CSE1_CONFIG_AND_TABLE &wave_table, const CSE1_CHANNEL_REGISTERS* State, CSE1_DOUBLE_SIG_REG &LeftBuf, CSE1_DOUBLE_SIG_REG &RightBuf) noexcept {
@@ -220,7 +220,7 @@ namespace CSE1_PACKED {
             CSE1_OPER_STATE& op = OP[opi];
             op.clock(wave_table, State, fm1pitch, fm2pitch);
             op.PITCH+=State->SPEC.SWEEP_FREQS[opi].FREQ_SPEED;
-            const auto ov = !op.FLAGS_A.GET_NOT_DEFAULT_OUT_AND_WAVE_TABLE_TABLE() ? op.VFB : wave_table.memPCM[op.OUT_TABLE+op.VFB];
+            const CSE1_REG ov = !op.FLAGS_A.GET_NOT_DEFAULT_OUT_AND_WAVE_TABLE_TABLE() ? op.VFB : wave_table.memPCM[op.OUT_TABLE+op.VFB];
             const CSE1_DOUBLE_SIG_REG LB = (bit_cast<int16_t>(ov)*State->OUT.IN_L.MI[opi]>>16)>>3;
             const CSE1_DOUBLE_SIG_REG RB = (bit_cast<int16_t>(ov)*State->OUT.IN_R.MI[opi]>>16)>>3;
 

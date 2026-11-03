@@ -84,16 +84,31 @@ void DivPlatformCSE1::muteChannel(int ch, bool mute) {
 void DivPlatformCSE1::tick(bool sysTick) {
   for (unsigned char i=0; i<chans; i++) {
     chan[i].std.next();
-    DivInstrument* ins = parent->getIns(chan[i].ins,DIV_INS_CSE1);
+    const DivInstrument* ins = parent->getIns(chan[i].ins,DIV_INS_CSE1);
+
     auto scaleVolume = 1;
     switch (ins->type) {
       case DIV_INS_QSOUND: {
         scaleVolume = 0x0004; // 0x3fff
         break;
       }
+      case DIV_INS_SNES: {
+        scaleVolume = 0x01ff;
+        break;
+      }
       case DIV_INS_ES5506:
       case DIV_INS_AMIGA: {
-        scaleVolume = 0x0202;
+        scaleVolume = 0x03ff; // 40 * 4 = 100
+        break;
+      }
+      default: break;
+    }
+
+    auto scalepan = 1;
+    switch (ins->type) {
+      case DIV_INS_ES5506:
+      case DIV_INS_AMIGA: {
+        scalepan = 0x01ff; // 40 * 4 = 100
         break;
       }
       default: break;
@@ -140,11 +155,11 @@ void DivPlatformCSE1::tick(bool sysTick) {
     }
     if (chan[i].std.panL.had) {
       const int val=chan[i].std.panL.val&0xffff;
-      chan[i].m_outL = scaleVolume * (val < 0xffff ? val : 0x10000);
+      chan[i].m_outL = scalepan * (val < 0xffff ? val : 0x10000);
     }
     if (chan[i].std.panR.had) {
       const int val=chan[i].std.panR.val&0xffff;
-      chan[i].m_outR = scaleVolume * (val < 0xffff ? val : 0x10000);
+      chan[i].m_outR = scalepan * (val < 0xffff ? val : 0x10000);
     }
     if (chan[i].std.vol.had) {
       const int val=chan[i].std.vol.val&0xffff;
@@ -194,10 +209,14 @@ void DivPlatformCSE1::tick(bool sysTick) {
       }
     }
 
+    auto originVol = chan[i].vol;
+    if (amigaVolumeLike) originVol *= 0x0403;
+    else originVol *= 0x101;
+
     const auto originOutL = static_cast<uint64_t>(chan[i].outL) * chan[i].m_outA>>16;
     const auto originOutR = static_cast<uint64_t>(chan[i].outR) * chan[i].m_outA>>16;
-    const auto outLbuf = chan[i].vol < 0xff ? (originOutL*chan[i].m_outL>>16)*chan[i].vol>>8 : (originOutL*chan[i].m_outL>>16);
-    const auto outRbuf = chan[i].vol < 0xff ? (originOutR*chan[i].m_outR>>16)*chan[i].vol>>8 : (originOutR*chan[i].m_outR>>16);
+    const auto outLbuf = originVol < 0xffff ? (originOutL*chan[i].m_outL>>16)*originVol>>16 : (originOutL*chan[i].m_outL>>16);
+    const auto outRbuf = originVol < 0xffff ? (originOutR*chan[i].m_outR>>16)*originVol>>16 : (originOutR*chan[i].m_outR>>16);
     chip.CHANNELS.CHANNEL[i].OUT.OUT_L = chan[i].outL2 < 0xff ? outLbuf * chan[i].outL2>>8 : outLbuf;
     chip.CHANNELS.CHANNEL[i].OUT.OUT_R= chan[i].outR2 < 0xff ? outRbuf * chan[i].outR2>>8 : outRbuf;
   }
@@ -219,6 +238,7 @@ int DivPlatformCSE1::dispatch(DivCommand c) {
       chan[c.chan].keyOn=true;
       {
         switch (ins->type) {
+          case DIV_INS_SNES:
           case DIV_INS_YMZ280B:
           case DIV_INS_ES5506:
           case DIV_INS_QSOUND:
@@ -255,13 +275,13 @@ int DivPlatformCSE1::dispatch(DivCommand c) {
             if (s && s->samples > 0) {
               for (int op = 0; op < 2; op++) {
                 if (s->loop) {
-                  cse1.op[op].startP = sampleOff[chan[c.chan].sample] + s->getLoopStartPosition(DIV_SAMPLE_DEPTH_16BIT)/2;
-                  cse1.op[op].endP = sampleOff[chan[c.chan].sample] + s->getLoopEndPosition(DIV_SAMPLE_DEPTH_16BIT)/2-1;
+                  cse1.op[op].startP = sampleOff[chan[c.chan].sample] + s->getLoopStartPosition(DIV_SAMPLE_DEPTH_8BIT);
+                  cse1.op[op].endP = sampleOff[chan[c.chan].sample] + s->getLoopEndPosition(DIV_SAMPLE_DEPTH_8BIT)-1;
                   cse1.op[op].phase = sampleOff[chan[c.chan].sample];
                   cse1.op[op].wave = CSE1_PACKED::OPER_LOOP_SAMPLE;
                 } else {
                   cse1.op[op].startP = sampleOff[chan[c.chan].sample];
-                  cse1.op[op].endP = sampleOff[chan[c.chan].sample] + (s->getCurBufLen() + 1) / 2-1;
+                  cse1.op[op].endP = sampleOff[chan[c.chan].sample] + s->getSampleOffset(0, s->samples, DIV_SAMPLE_DEPTH_8BIT)-1;
                   cse1.op[op].phase = cse1.op[op].startP;
                   cse1.op[op].wave = CSE1_PACKED::OPER_ONESHOT_SAMPLE;
                 }
@@ -305,12 +325,12 @@ int DivPlatformCSE1::dispatch(DivCommand c) {
                     continue;
                   }
                   if (s->loop) {
-                    op.startP = base + s->getLoopStartPosition(DIV_SAMPLE_DEPTH_16BIT) / 2;
-                    op.endP = base + s->getLoopEndPosition(DIV_SAMPLE_DEPTH_16BIT) / 2 - 1;
+                    op.startP = base + s->getLoopStartPosition(DIV_SAMPLE_DEPTH_8BIT);
+                    op.endP = base + s->getLoopEndPosition(DIV_SAMPLE_DEPTH_8BIT)-1;
                     op.phase = base;
                   } else {
                     op.startP = base;
-                    op.endP = base + (s->getCurBufLen() + 1) / 2 - 1;
+                    op.endP = base + s->getSampleOffset(0, s->samples, DIV_SAMPLE_DEPTH_8BIT)-1;
                     op.phase = base;
                   }
                 }
@@ -342,7 +362,7 @@ int DivPlatformCSE1::dispatch(DivCommand c) {
       break;
     case DIV_CMD_VOLUME:
       chan[c.chan].vol=c.value;
-      if (chan[c.chan].vol>255) chan[c.chan].vol=255;
+      if (chan[c.chan].vol> 255) chan[c.chan].vol=255;
       break;
     case DIV_CMD_HINT_VOLUME:
       break;
@@ -382,7 +402,7 @@ int DivPlatformCSE1::dispatch(DivCommand c) {
       chan[c.chan].freqChanged=true;
       break;
     case DIV_CMD_GET_VOLMAX:
-      return 255;
+      return amigaVolumeLike ? 64 : 255;
       break;
     case DIV_CMD_MACRO_OFF:
       chan[c.chan].std.mask(c.value,true);
@@ -557,6 +577,7 @@ void DivPlatformCSE1::setFlags(const DivConfig& flags) {
   waveTable.fastSpeed = flags.getInt("defaultVolumeTableSpeed",0x4000);
   waveTable.not_fm = flags.getBool("not_fm",false);
   waveTable.chipType = static_cast<CSE1_PACKED::CSE1_CHIP_VERSION>(flags.getInt("revision",1));
+  amigaVolumeLike = flags.getBool("amiga_volume_like",false);
   waveTable.reset();
   notifyPitchTable();
 }
@@ -566,7 +587,7 @@ int DivPlatformCSE1::init(DivEngine* p, int channels, int sugRate, const DivConf
   samplePitchTable.init(parent);
   dumpWrites=false;
   skipRegisterWrites=false;
-  for (int i=0; i<DIV_MAX_CHANS; i++) {
+  for (int i=0; i<CSE1_CHANNEL_NUMBER; i++) {
     isMuted[i]=false;
     if (i<channels) {
       oscBuf[i]=new DivDispatchOscBuffer;

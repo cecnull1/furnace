@@ -38,6 +38,7 @@ class DivPlatformCSE1 : public DivDispatch {
     int oldVolume[2];
     int newVolume[2];
     bool oldMixer;
+    bool amigaVolumeLike;
 
     friend void putDispatchChip(void*,int);
     friend void putDispatchChan(void*,int,int);

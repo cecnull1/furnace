@@ -27,6 +27,7 @@ namespace CSE1_PACKED {
     struct CSE1_ADSR;
     struct CSE1_CONFIG_AND_TABLE;
     class CSE1;
+    template<size_t L>
     struct CSE1_FILTER_PRIVATE;
     struct CSE1_CHANNEL_REGISTERS;
     typedef uint16_t CSE1_REG;
@@ -136,12 +137,16 @@ namespace CSE1_PACKED {
         CSE1_REG FILTER_INFO;
         CSE1_BIT_FIELD_MEMBER(TYPES, CSE1_REG, 0, 3, FILTER_INFO)
 
-        void clock_1_2(const CSE1_CONFIG_AND_TABLE &table, CSE1_FILTER_PRIVATE &filter_private,
-            const std::array<CSE1_FILTER_PRIVATE, 3> &value, CSE1_DOUBLE_SIG_REG in1, CSE1_DOUBLE_SIG_REG in2) const;
+        void clock_1_2(
+            const CSE1_CONFIG_AND_TABLE &table,
+            size_t index,
+            CSE1_FILTER_PRIVATE<3> &value,
+            CSE1_DOUBLE_SIG_REG in1, CSE1_DOUBLE_SIG_REG in2) const;
 
-        void clock_1(CSE1_FILTER_PRIVATE &filter_private, const std::array<CSE1_FILTER_PRIVATE, 3>
-            &value, CSE1_DOUBLE_SIG_REG
-            in1, CSE1_DOUBLE_SIG_REG in2) const;
+        void clock_1(
+            CSE1_FILTER_PRIVATE<3> &value,
+            size_t index,
+            CSE1_DOUBLE_SIG_REG in1, CSE1_DOUBLE_SIG_REG in2) const;
 
         CSE1_BIT_FIELD_MEMBER(INPUTS, CSE1_REG, 3, 4, FILTER_INFO)
         CSE1_BIT_FIELD_MEMBER(RES, CSE1_REG, 8, 8, FILTER_INFO)
@@ -191,22 +196,25 @@ namespace CSE1_PACKED {
         CSE1_OUT OUT;
         CSE1_SPEC SPEC;
 
-        void clock(const CSE1_CONFIG_AND_TABLE &wave_table, std::array<CSE1_FILTER_PRIVATE, 3> &value, CSE1_DOUBLE_SIG_REG &LeftBuf, CSE1_DOUBLE_SIG_REG
+        void clock(const CSE1_CONFIG_AND_TABLE &wave_table, CSE1_FILTER_PRIVATE<3> &value, CSE1_DOUBLE_SIG_REG &LeftBuf, CSE1_DOUBLE_SIG_REG
             &RightBuf) noexcept;
     };
 
+    template<size_t L>
     struct CSE1_FILTER_PRIVATE {
-        CSE1_DOUBLE_SIG_REG BUF_LOW_L;
-        CSE1_DOUBLE_SIG_REG BUF_BAND_L;
-        CSE1_DOUBLE_SIG_REG BUF_LOW_R;
-        CSE1_DOUBLE_SIG_REG BUF_BAND_R;
-        CSE1_DOUBLE_SIG_REG VFB_L;
-        CSE1_DOUBLE_SIG_REG VFB_R;
+        CSE1_DOUBLE_SIG_REG BUF_LOW_L[L];
+        CSE1_DOUBLE_SIG_REG BUF_BAND_L[L];
+        CSE1_DOUBLE_SIG_REG BUF_LOW_R[L];
+        CSE1_DOUBLE_SIG_REG BUF_BAND_R[L];
+        CSE1_DOUBLE_SIG_REG VFB_L[L];
+        CSE1_DOUBLE_SIG_REG VFB_R[L];
+
+        static constexpr size_t size() noexcept { return L; }
     };
 
     struct CSE1_CHANNELS {
         std::array<CSE1_CHANNEL_REGISTERS, CSE1_CHANNEL_NUMBER> CHANNEL;
-        std::array<std::array<CSE1_FILTER_PRIVATE, 3>, CSE1_CHANNEL_NUMBER> FILTER_PRIVATE;
+        std::array<CSE1_FILTER_PRIVATE<3>, CSE1_CHANNEL_NUMBER> FILTER_PRIVATE;
         std::array<CSE1_DOUBLE_SIG_REG, CSE1_CHANNEL_NUMBER> OUTS_L;
         std::array<CSE1_DOUBLE_SIG_REG, CSE1_CHANNEL_NUMBER> OUTS_R;
         void clock(const CSE1_CONFIG_AND_TABLE &wave_table) noexcept;
