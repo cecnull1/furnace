@@ -405,6 +405,7 @@ enum FurnaceGUIColors {
   GUI_COLOR_CHANNEL_WAVE,
   GUI_COLOR_CHANNEL_PCM,
   GUI_COLOR_CHANNEL_OP,
+  GUI_COLOR_CHANNEL_TIMER,
   GUI_COLOR_CHANNEL_MUTED,
 
   GUI_COLOR_PATTERN_BG,
@@ -2584,7 +2585,7 @@ class FurnaceGUI {
   std::atomic<FurnaceGUIWindows> curWindowThreadSafe;
   std::atomic<bool> failedNoteOn;
   float peak[DIV_MAX_OUTPUTS];
-  float patChanX[DIV_MAX_CHANS+1];
+  float* patChanX;
   float patChanSlideY[DIV_MAX_CHANS+1];
   float patLineHeight;
   float lastPatternWidth, longThreshold;
@@ -3447,6 +3448,7 @@ class FurnaceGUI {
   void doExpand(int multiplier, const SelectionPoint& sStart, const SelectionPoint& sEnd);
   void doCollapseSong(int divider);
   void doExpandSong(int multiplier);
+  void doCollapseChannel(int ch);
   void doAbsorbInstrument();
   void doUndo();
   void doRedo();
