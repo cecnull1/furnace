@@ -43,7 +43,7 @@
 # define FURNACE_POPEN  _popen
 # define FURNACE_PCLOSE _pclose
 # define PIPE_WRITE_MODE "wb"   // binary mode to avoid CR LF translation on Windows
-# define NULL_REDIRECT "2>NUL"
+# define NULL_REDIRECT "2>con"
 #else
 # define FURNACE_POPEN  popen
 # define FURNACE_PCLOSE pclose
@@ -761,10 +761,11 @@ void FurnaceGUI::runOscVideoExport(const String& path) {
 
   int crf=oscVideoExport.videoCRF;
   String vcmd=fmt::sprintf(
-    "\"%s\" -y -f rawvideo -pix_fmt rgba -s %dx%d -r %d -i pipe:0 "
-    "-c:v libx264 -crf %d -preset fast -pix_fmt yuv420p -f matroska \"%s\" %s",
+    "\"\"%s\" -y -f rawvideo -pix_fmt rgba -s %dx%d -r %d -i pipe:0 "
+    "-c:v libx264 -crf %d -preset fast -pix_fmt yuv420p -f matroska \"%s\"\" %s",
     ffmpegExe,W,H,FPS,crf,vidTmp,NULL_REDIRECT);
   FILE* vpipe=FURNACE_POPEN(vcmd.c_str(),PIPE_WRITE_MODE);
+
   if (!vpipe) {
     logE("OscVideo: popen failed, is ffmpeg installed?");
     oscVideoCombining=false;
@@ -857,13 +858,13 @@ void FurnaceGUI::runOscVideoExport(const String& path) {
       if (vbr<50) vbr=50;
       logI("OscVideo: target %d MB - %.1fs, video bitrate %d kbps",oscVideoExport.targetSizeMB,dur,vbr);
       ccmd=fmt::sprintf(
-        "\"%s\" -y -i \"%s\" -i \"%s\" "
-        "-c:v libx264 -b:v %dk -maxrate %dk -bufsize %dk -c:a aac -ar %d -b:a %dk \"%s\" %s",
+        "\"\"%s\" -y -i \"%s\" -i \"%s\" "
+        "-c:v libx264 -b:v %dk -maxrate %dk -bufsize %dk -c:a aac -ar %d -b:a %dk \"%s\"\" %s",
         ffmpegExe,vidTmp,audTmp,vbr,vbr*2,vbr*4,oscVideoExport.sampleRate,audioBr,String(path),NULL_REDIRECT);
     } else {
       ccmd=fmt::sprintf(
-        "\"%s\" -y -i \"%s\" -i \"%s\" "
-        "-c:v copy -c:a aac -ar %d -b:a %dk \"%s\" %s",
+        "\"\"%s\" -y -i \"%s\" -i \"%s\" "
+        "-c:v copy -c:a aac -ar %d -b:a %dk \"%s\"\" %s",
         ffmpegExe,vidTmp,audTmp,oscVideoExport.sampleRate,audioBr,String(path),NULL_REDIRECT);
     }
   } else {
@@ -873,16 +874,16 @@ void FurnaceGUI::runOscVideoExport(const String& path) {
     int vorbisQ=6;
     for (int i=0; i<11; i++) if (audioBr>=vorbisBr[i]) vorbisQ=i;
     ccmd=fmt::sprintf(
-      "\"%s\" -y -i \"%s\" -i \"%s\" "
-      "-c:v copy -c:a libvorbis -ar %d -q:a %d \"%s\" %s",
+      "\"\"%s\" -y -i \"%s\" -i \"%s\" "
+      "-c:v copy -c:a libvorbis -ar %d -q:a %d \"%s\"\" %s",
       ffmpegExe,vidTmp,audTmp,oscVideoExport.sampleRate,vorbisQ,String(path),NULL_REDIRECT);
   }
   int ret=system(ccmd.c_str());
   if (ret!=0) logE("OscVideo: combine failed (code %d)",ret);
   else logI("OscVideo: done - %s",path.c_str());
 
-  remove(vidTmp.c_str());
-  remove(audTmp.c_str());
+  // remove(vidTmp.c_str());
+  // remove(audTmp.c_str());
 
   oscVideoCombining=false;
   oscVideoExporting=false;

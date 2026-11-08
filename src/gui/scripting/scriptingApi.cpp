@@ -88,7 +88,9 @@ static const char* insTypeNames[]={
   "typeSupervision",
   NULL, //"typeuPD1771C"
   "typeSID3",
-  "typeKlattsch"
+  "typeKlattsch",
+  "typeCSE1",
+  "typeSGU1"
 };
 
 static_assert((sizeof(insTypeNames)/sizeof(const char*))==DIV_INS_MAX,"insTypeNames: missing type!");
@@ -299,6 +301,7 @@ static const char* chipIdNames[]={
   "chipY8950Drums",
   "chipSCCPlus",
   "chipSoundUnit",
+  "chipSGU1",
   "chipMSM6295",
   "chipMSM6258",
   "chipYMZ280B",
@@ -339,7 +342,9 @@ static const char* chipIdNames[]={
   "chipSID3",
   "chip6581PCM",
   "chipNamcoPolePos",
-  "chipKlattsch"
+  "chipKlattsch",
+  "chipSAANEW",
+  "chipCSE1"
 };
 
 static_assert((sizeof(chipIdNames)/sizeof(const char*))==DIV_SYSTEM_MAX,"chipIdNames: missing chip!");
