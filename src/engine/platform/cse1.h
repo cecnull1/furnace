@@ -2,6 +2,7 @@
 #define CSE1_H_PLATFORM_CSE1
 
 #include "../dispatch.h"
+#include "sound/cse1/cmsu1.h"
 #include "sound/cse1/cse1.hpp"
 
 class DivPlatformCSE1 : public DivDispatch {
@@ -28,6 +29,8 @@ class DivPlatformCSE1 : public DivDispatch {
     bool isMuted[CSE1_CHANNEL_NUMBER];
     unsigned char chans;
     CSE1_PACKED::CSE1 chip;
+    CMSU1_PACKED::CMSU1_MIXER mixer_left;
+    CMSU1_PACKED::CMSU1_MIXER mixer_right;
     CSE1_PACKED::CSE1_CONFIG_AND_TABLE waveTable;
     DivMemoryComposition memCompo;
     CSE1_PACKED::CSE1_REG* pcmMem;
@@ -86,6 +89,8 @@ public:
     void tick(bool sysTick=true) override;
     int init(DivEngine* parent, int channels, int sugRate, const DivConfig& flags) override;
     void quit() override;
+
+    DivPlatformCSE1();
     ~DivPlatformCSE1() override;
 };
 #endif // CSE1_H_PLATFORM_CSE1

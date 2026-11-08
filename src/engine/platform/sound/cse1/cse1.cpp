@@ -30,14 +30,14 @@ namespace CSE1_PACKED {
             auto& channel = CHANNEL[i];
             auto& filterState = FILTER_PRIVATE[i];
             OUTS_R[i]=OUTS_L[i]=0;
-            channel.clock(wave_table, filterState, OUTS_L[i], OUTS_R[i]);
+            channel.clock(wave_table, this->VFBS.VFB[i], filterState, OUTS_L[i], OUTS_R[i]);
         }
     }
 
-    void CSE1_CHANNEL_REGISTERS::clock(const CSE1_CONFIG_AND_TABLE& wave_table, CSE1_FILTER_PRIVATE<3>& value, CSE1_DOUBLE_SIG_REG& LeftBuf, CSE1_DOUBLE_SIG_REG& RightBuf) noexcept {
+    void CSE1_CHANNEL_REGISTERS::clock(const CSE1_CONFIG_AND_TABLE& wave_table, VFB_OPER_STRUCT& VFBS, CSE1_FILTER_PRIVATE<3>& value, CSE1_DOUBLE_SIG_REG& LeftBuf, CSE1_DOUBLE_SIG_REG& RightBuf) noexcept {
         CSE1_DOUBLE_SIG_REG LeftBuf2 = 0;
         CSE1_DOUBLE_SIG_REG RightBuf2 = 0;
-        OPS.clock(wave_table, this, LeftBuf2, RightBuf2);
+        OPS.clock(wave_table, VFBS, this, LeftBuf2, RightBuf2);
         SPEC.LFO1.PHASE+=SPEC.LFO_CONFIG.GET_FREQ();
         SPEC.LFO2.PHASE+=SPEC.LFO_CONFIG.GET_FREQ2();
         OUT.PITCH += SPEC.SWEEP_FREQS[CSE1_OPER_NUMBER].FREQ_SPEED;
@@ -67,10 +67,6 @@ namespace CSE1_PACKED {
 
         LeftBuf = (LeftBuf2 * wave_table.volume_line[OUT.OUT_L] >> 16) + LeftBuf3;
         RightBuf = (RightBuf2 * wave_table.volume_line[OUT.OUT_R] >> 16) + RightBuf3;
-    }
-
-    static constexpr float fastTanh(const float x) {
-        return x / std::sqrt(1.0f + x * x);
     }
 
     void CSE1_FILTER::clock_1_2(
@@ -117,10 +113,10 @@ namespace CSE1_PACKED {
         const float bpR = g * hpR + s1R;
         const float lpR = g * bpR + s2R;
 
-        value.BUF_BAND_L[index] = bit_cast<CSE1_DOUBLE_SIG_REG>(fastTanh(g * hpL + bpL));
-        value.BUF_LOW_L[index] = bit_cast<CSE1_DOUBLE_SIG_REG>(fastTanh(g * bpL + lpL));
-        value.BUF_BAND_R[index] = bit_cast<CSE1_DOUBLE_SIG_REG>(fastTanh(g * hpR + bpR));
-        value.BUF_LOW_R[index] = bit_cast<CSE1_DOUBLE_SIG_REG>(fastTanh(g * bpR + lpR));
+        value.BUF_BAND_L[index] = bit_cast<CSE1_DOUBLE_SIG_REG>(g * hpL + bpL);
+        value.BUF_LOW_L[index] = bit_cast<CSE1_DOUBLE_SIG_REG>(g * bpL + lpL);
+        value.BUF_BAND_R[index] = bit_cast<CSE1_DOUBLE_SIG_REG>(g * hpR + bpR);
+        value.BUF_LOW_R[index] = bit_cast<CSE1_DOUBLE_SIG_REG>(g * bpR + lpR);
 
         float outL = 0.0f;
         float outR = 0.0f;
@@ -141,8 +137,8 @@ namespace CSE1_PACKED {
             outR += inR;
         }
 
-        value.VFB_L[index] = bit_cast<CSE1_DOUBLE_SIG_REG>(fastTanh(outL));
-        value.VFB_R[index] = bit_cast<CSE1_DOUBLE_SIG_REG>(fastTanh(outR));
+        value.VFB_L[index] = bit_cast<CSE1_DOUBLE_SIG_REG>(outL);
+        value.VFB_R[index] = bit_cast<CSE1_DOUBLE_SIG_REG>(outR);
     }
 
     void CSE1_FILTER::clock_1(
@@ -209,7 +205,7 @@ namespace CSE1_PACKED {
         value.VFB_R[index] = outR;
     }
 
-    void CSE1_OPS::clock(const CSE1_CONFIG_AND_TABLE &wave_table, const CSE1_CHANNEL_REGISTERS* State, CSE1_DOUBLE_SIG_REG &LeftBuf, CSE1_DOUBLE_SIG_REG &RightBuf) noexcept {
+    void CSE1_OPS::clock(const CSE1_CONFIG_AND_TABLE &wave_table, VFB_OPER_STRUCT& VFBS, const CSE1_CHANNEL_REGISTERS* State, CSE1_DOUBLE_SIG_REG &LeftBuf, CSE1_DOUBLE_SIG_REG &RightBuf) noexcept {
 
         const auto fm1pitch = static_cast<uint64_t>(static_cast<CSE1_SIG_REG>(CSE1_LFO_CONFIG::option_wavetable(State->SPEC.LFO_CONFIG.GET_SHAPE(), wave_table, State->SPEC.LFO1.PHASE)-0x8000)
                     *State->SPEC.LFO_CONFIG.GET_DEPTH());
@@ -218,9 +214,9 @@ namespace CSE1_PACKED {
 
         for (size_t opi = 0; opi < CSE1_OPER_NUMBER; opi++) {
             CSE1_OPER_STATE& op = OP[opi];
-            op.clock(wave_table, State, fm1pitch, fm2pitch);
+            op.clock(wave_table, VFBS.VFB[opi], VFBS, State, fm1pitch, fm2pitch);
             op.PITCH+=State->SPEC.SWEEP_FREQS[opi].FREQ_SPEED;
-            const CSE1_REG ov = !op.FLAGS_A.GET_NOT_DEFAULT_OUT_AND_WAVE_TABLE_TABLE() ? op.VFB : wave_table.memPCM[op.OUT_TABLE+op.VFB];
+            const CSE1_REG ov = !op.FLAGS_A.GET_NOT_DEFAULT_OUT_AND_WAVE_TABLE_TABLE() ? VFBS.VFB[opi] : wave_table.memPCM[op.OUT_TABLE+VFBS.VFB[opi]];
             const CSE1_DOUBLE_SIG_REG LB = (bit_cast<int16_t>(ov)*State->OUT.IN_L.MI[opi]>>16)>>3;
             const CSE1_DOUBLE_SIG_REG RB = (bit_cast<int16_t>(ov)*State->OUT.IN_R.MI[opi]>>16)>>3;
 
@@ -241,7 +237,7 @@ namespace CSE1_PACKED {
         return  ~(static_cast<CSE1_DOUBLE_REG>(v)-1u);
     }
 
-    void CSE1_OPER_STATE::clock(const CSE1_CONFIG_AND_TABLE &wave_table, const CSE1_CHANNEL_REGISTERS *state, const uint64_t ExtFM1AddPitch, const uint64_t ExtFM2AddPitch) noexcept {
+    void CSE1_OPER_STATE::clock(const CSE1_CONFIG_AND_TABLE &wave_table, CSE1_REG& VFB, const VFB_OPER_STRUCT& VFBS, const CSE1_CHANNEL_REGISTERS *state, const uint64_t ExtFM1AddPitch, const uint64_t ExtFM2AddPitch) noexcept {
         const auto o_pitch = this->FLAGS_A.GET_FIXED() ? this->PITCH : state->OUT.PITCH+this->PITCH;
         const auto pitch = MULT_CALC(
                 o_pitch +
@@ -286,8 +282,7 @@ namespace CSE1_PACKED {
 
         CSE1_REG add_phase = 0;
         if (!wave_table.not_fm) for (size_t i = 0; i < CSE1_OPER_NUMBER; i++) {
-            auto& op = state->OPS.OP[i];
-            add_phase += static_cast<int32_t>(static_cast<int16_t>(op.VFB)) * this->MIS.MI[i] >> 13;
+            add_phase += static_cast<int32_t>(static_cast<int16_t>(VFBS.VFB[i])) * this->MIS.MI[i] >> 13;
         }
         add_phase += PHASE>>16;
 

@@ -944,6 +944,8 @@ src/engine/export/grub.cpp
 
 src/engine/effect/abstract.cpp
 src/engine/effect/dummy.cpp
+        src/engine/platform/sound/cse1/cmsu1.cpp
+        src/engine/platform/sound/cse1/cmsu1.h
 )
 
 if (ORIG_NDS_CORE)

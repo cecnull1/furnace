@@ -531,6 +531,8 @@ void DivPlatformCSE1::renderSamples(int sysID) {
 }
 void DivPlatformCSE1::reset() {
   chip.hard_reset();
+  mixer_left.hard_reset();
+  mixer_right.hard_reset();
   oldVolume[0] = 0;
   oldVolume[1] = 0;
   newVolume[0] = 0;
@@ -625,4 +627,5 @@ void DivPlatformCSE1::quit() {
   samplePitchTable.destroy<Channel>(chan,CSE1_CHANNEL_NUMBER);
 }
 
+DivPlatformCSE1::DivPlatformCSE1() = default;
 DivPlatformCSE1::~DivPlatformCSE1() = default;
