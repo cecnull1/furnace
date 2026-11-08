@@ -341,6 +341,13 @@ int DivEngine::getChannelType(int chan) {
   return song.chanDef[chan].type;
 }
 
+unsigned int DivEngine::getChannelFlags(int chan) {
+  if (chan<0 || chan>song.chans) return 0;
+  if (song.dispatchChanOfChan[chan]<0) return 0;
+
+  return song.chanDef[chan].flags;
+}
+
 DivInstrumentType DivEngine::getPreferInsType(int chan) {
   if (chan<0 || chan>song.chans) return DIV_INS_STD;
   if (song.dispatchChanOfChan[chan]<0) return DIV_INS_STD;
@@ -606,9 +613,9 @@ void DivEngine::registerSystems() {
     {0x10, {DIV_CMD_FM_LFO, _("10xy: Setup LFO (x: enable; y: speed)")}},
     {0x55, {DIV_CMD_FM_SSG, _("55xy: Set SSG envelope (x: operator from 1 to 4 (0 for all ops); y: 0-7 on, 8 off)"), effectOpVal<4>, effectValAnd<15>}},
   });
-
   EffectHandlerMap fmOPN2PostEffectHandlerMap(fmOPNPostEffectHandlerMap);
-  fmOPN2PostEffectHandlerMap.insert(ayPostEffectHandlerMap.begin(), ayPostEffectHandlerMap.end());
+  fmOPNPostEffectHandlerMap.insert(ayPostEffectHandlerMap.begin(), ayPostEffectHandlerMap.end());
+
   fmOPN2PostEffectHandlerMap.insert({
     {0x6c, {DIV_CMD_TEST_REG, _("6Cxx: Set test register $21 (dangerous)"), constVal<0x21>, effectVal}},
     {0x6d, {DIV_CMD_TEST_REG, _("6Dxx: Set test register $2C (dangerous)"), constVal<0x2c>, effectVal}},
@@ -978,7 +985,7 @@ void DivEngine::registerSystems() {
       DivChanDef(_("Pulse 2") , "S2" , DIV_CH_PULSE, DIV_INS_NES),
       DivChanDef(_("Triangle"), "TR" , DIV_CH_WAVE , DIV_INS_NES),
       DivChanDef(_("Noise")   , "NO" , DIV_CH_NOISE, DIV_INS_NES),
-      DivChanDef(_("DPCM")    , "DMC", DIV_CH_PCM  , DIV_INS_NES, DIV_INS_AMIGA)
+      DivChanDef(_("DPCM")    , "DMC", DIV_CH_PCM  , DIV_INS_NES, DIV_INS_AMIGA, DIV_CHFLAG_NO_VOLUME)
     }),
     {
       {0x11, {DIV_CMD_NES_DMC, _("11xx: Write to delta modulation counter (0 to 7F)")}},
@@ -1118,7 +1125,7 @@ void DivEngine::registerSystems() {
   );
 
   sysDefs[DIV_SYSTEM_SAA1099]=new DivSysDef(
-    _("Philips SAA1099"), NULL, 0x97, 0, 6, 6, 6,
+    _("Philips SAA1099 (no software timers)"), NULL, 0x97, 0, 6, 6, 6,
     false, true, 0x171, false, 0, 0, 0,
     _("supposedly an upgrade from the AY-3-8910, this was present on the Creative Music System (Game Blaster) and SAM Coupé."),
     DivChanDefFunc({
@@ -1128,6 +1135,28 @@ void DivEngine::registerSystems() {
       DivChanDef(_("PSG 4"), "S4", DIV_CH_PULSE, DIV_INS_SAA1099),
       DivChanDef(_("PSG 5"), "S5", DIV_CH_PULSE, DIV_INS_SAA1099),
       DivChanDef(_("PSG 6"), "S6", DIV_CH_PULSE, DIV_INS_SAA1099),
+    }),
+    {},
+    {
+      {0x10, {DIV_CMD_STD_NOISE_MODE, _("10xy: Set channel mode (x: noise; y: tone)")}},
+      {0x11, {DIV_CMD_STD_NOISE_FREQ, _("11xx: Set noise frequency")}},
+      {0x12, {DIV_CMD_SAA_ENVELOPE, _("12xx: Setup envelope (refer to docs for more information)")}},
+    }
+  );
+
+  sysDefs[DIV_SYSTEM_SAA1099_NEW]=new DivSysDef(
+    _("Philips SAA1099"), NULL, 0xe9, 0, 8, 8, 8,
+    false, true, 0x171, false, 0, 0, 0,
+    _("supposedly an upgrade from the AY-3-8910, this was present on the Creative Music System (Game Blaster) and SAM Coupé."),
+    DivChanDefFunc({
+      DivChanDef(_("PSG 1"),   "S1", DIV_CH_PULSE, DIV_INS_SAA1099),
+      DivChanDef(_("PSG 2"),   "S2", DIV_CH_PULSE, DIV_INS_SAA1099),
+      DivChanDef(_("PSG 3"),   "S3", DIV_CH_PULSE, DIV_INS_SAA1099),
+      DivChanDef(_("Timer 1"), "T1", DIV_CH_TIMER, DIV_INS_SAA1099, DIV_INS_NULL, DIV_CHFLAG_AUXILIARY|DIV_CHFLAG_NO_VOLUME),
+      DivChanDef(_("PSG 4"),   "S4", DIV_CH_PULSE, DIV_INS_SAA1099),
+      DivChanDef(_("PSG 5"),   "S5", DIV_CH_PULSE, DIV_INS_SAA1099),
+      DivChanDef(_("PSG 6"),   "S6", DIV_CH_PULSE, DIV_INS_SAA1099),
+      DivChanDef(_("Timer 2"), "T2", DIV_CH_TIMER, DIV_INS_SAA1099, DIV_INS_NULL, DIV_CHFLAG_AUXILIARY|DIV_CHFLAG_NO_VOLUME),
     }),
     {},
     {
@@ -1338,7 +1367,7 @@ void DivEngine::registerSystems() {
       DivChanDef(_("FM 3 OP2") , "O2" , DIV_CH_OP   , DIV_INS_FM),
       DivChanDef(_("FM 3 OP3") , "O3" , DIV_CH_OP   , DIV_INS_FM),
       DivChanDef(_("FM 3 OP4") , "O4" , DIV_CH_OP   , DIV_INS_FM),
-      DivChanDef(_("CSM Timer"), "CSM", DIV_CH_NOISE, DIV_INS_FM),
+      DivChanDef(_("CSM Timer"), "CSM", DIV_CH_TIMER, DIV_INS_FM, DIV_INS_NULL, DIV_CHFLAG_AUXILIARY|DIV_CHFLAG_NO_VOLUME),
       DivChanDef(_("PSG 1")    , "S1" , DIV_CH_PULSE, DIV_INS_AY),
       DivChanDef(_("PSG 2")    , "S2" , DIV_CH_PULSE, DIV_INS_AY),
       DivChanDef(_("PSG 3")    , "S3" , DIV_CH_PULSE, DIV_INS_AY)
@@ -1420,7 +1449,7 @@ void DivEngine::registerSystems() {
       DivChanDef(_("FM 4")     , "F4" , DIV_CH_FM   , DIV_INS_FM),
       DivChanDef(_("FM 5")     , "F5" , DIV_CH_FM   , DIV_INS_FM),
       DivChanDef(_("FM 6")     , "F6" , DIV_CH_FM   , DIV_INS_FM),
-      DivChanDef(_("CSM Timer"), "CSM", DIV_CH_NOISE, DIV_INS_FM),
+      DivChanDef(_("CSM Timer"), "CSM", DIV_CH_TIMER, DIV_INS_FM, DIV_INS_NULL, DIV_CHFLAG_AUXILIARY|DIV_CHFLAG_NO_VOLUME),
       DivChanDef(_("Square 1") , "S1" , DIV_CH_PULSE, DIV_INS_AY),
       DivChanDef(_("Square 2") , "S2" , DIV_CH_PULSE, DIV_INS_AY),
       DivChanDef(_("Square 3") , "S3" , DIV_CH_PULSE, DIV_INS_AY),
@@ -1502,7 +1531,7 @@ void DivEngine::registerSystems() {
     false, true, 0, false, 0, 0, 0,
     _("please don't use this chip. it was added as a joke."),
     DivChanDefFunc({
-      DivChanDef(_("Square"), "SQ", DIV_CH_PULSE, DIV_INS_BEEPER)
+      DivChanDef(_("Square"), "SQ", DIV_CH_PULSE, DIV_INS_BEEPER, DIV_INS_NULL, DIV_CHFLAG_NO_VOLUME)
     })
   );
 
@@ -1687,7 +1716,7 @@ void DivEngine::registerSystems() {
       DivChanDef(_("FM 4")     , "F4" , DIV_CH_FM   , DIV_INS_FM),
       DivChanDef(_("FM 5")     , "F5" , DIV_CH_FM   , DIV_INS_FM),
       DivChanDef(_("FM 6")     , "F6" , DIV_CH_FM   , DIV_INS_FM, DIV_INS_AMIGA),
-      DivChanDef(_("CSM Timer"), "CSM", DIV_CH_NOISE, DIV_INS_FM)
+      DivChanDef(_("CSM Timer"), "CSM", DIV_CH_TIMER, DIV_INS_FM, DIV_INS_NULL, DIV_CHFLAG_AUXILIARY|DIV_CHFLAG_NO_VOLUME)
     }),
     fmOPN2EffectHandlerMap,
     fmOPN2PostEffectHandlerMap,
@@ -1860,7 +1889,7 @@ void DivEngine::registerSystems() {
       DivChanDef(_("FM 2 OP4") , "O4" , DIV_CH_OP   , DIV_INS_FM),
       DivChanDef(_("FM 3")     , "F3" , DIV_CH_FM   , DIV_INS_FM),
       DivChanDef(_("FM 4")     , "F4" , DIV_CH_FM   , DIV_INS_FM),
-      DivChanDef(_("CSM Timer"), "CSM", DIV_CH_NOISE, DIV_INS_FM),
+      DivChanDef(_("CSM Timer"), "CSM", DIV_CH_TIMER, DIV_INS_FM, DIV_INS_NULL, DIV_CHFLAG_AUXILIARY|DIV_CHFLAG_NO_VOLUME),
       DivChanDef(_("PSG 1")    , "S1" , DIV_CH_PULSE, DIV_INS_AY),
       DivChanDef(_("PSG 2")    , "S2" , DIV_CH_PULSE, DIV_INS_AY),
       DivChanDef(_("PSG 3")    , "S3" , DIV_CH_PULSE, DIV_INS_AY),
@@ -2026,7 +2055,7 @@ void DivEngine::registerSystems() {
       DivChanDef(_("FM 4")     , "F4" , DIV_CH_FM   , DIV_INS_FM),
       DivChanDef(_("FM 5")     , "F5" , DIV_CH_FM   , DIV_INS_FM),
       DivChanDef(_("FM 6")     , "F6" , DIV_CH_FM   , DIV_INS_FM),
-      DivChanDef(_("CSM Timer"), "CSM", DIV_CH_NOISE, DIV_INS_FM),
+      DivChanDef(_("CSM Timer"), "CSM", DIV_CH_TIMER, DIV_INS_FM, DIV_INS_NULL, DIV_CHFLAG_AUXILIARY|DIV_CHFLAG_NO_VOLUME),
       DivChanDef(_("PSG 1")    , "S1" , DIV_CH_PULSE, DIV_INS_AY),
       DivChanDef(_("PSG 2")    , "S2" , DIV_CH_PULSE, DIV_INS_AY),
       DivChanDef(_("PSG 3")    , "S3" , DIV_CH_PULSE, DIV_INS_AY),
@@ -2359,7 +2388,7 @@ void DivEngine::registerSystems() {
     false, true, 0x150, false, 1U<<DIV_SAMPLE_DEPTH_VOX, 0, 0,
     _("an ADPCM sound chip manufactured by OKI and used in the Sharp X68000."),
     DivChanDefFunc({
-      DivChanDef(_("Sample"), _("PCM"), DIV_CH_PCM, DIV_INS_MSM6258, DIV_INS_AMIGA)
+      DivChanDef(_("Sample"), _("PCM"), DIV_CH_PCM, DIV_INS_MSM6258, DIV_INS_AMIGA, DIV_CHFLAG_NO_VOLUME)
     }),
     {
       {0x20, {DIV_CMD_SAMPLE_FREQ, _("20xx: Set frequency divider (0-2)")}},
@@ -2461,7 +2490,7 @@ void DivEngine::registerSystems() {
       DivChanDef(_("FM 5")      , "F5" , DIV_CH_FM   , DIV_INS_FM),
       DivChanDef(_("FM 6/PCM 1"), "P1" , DIV_CH_PCM  , DIV_INS_FM, DIV_INS_AMIGA),
       DivChanDef(_("PCM 2")     , "P2" , DIV_CH_PCM  , DIV_INS_AMIGA),
-      DivChanDef(_("CSM Timer") , "CSM", DIV_CH_NOISE, DIV_INS_FM)
+      DivChanDef(_("CSM Timer") , "CSM", DIV_CH_TIMER, DIV_INS_FM, DIV_INS_NULL, DIV_CHFLAG_AUXILIARY|DIV_CHFLAG_NO_VOLUME)
     }),
     fmOPN2EffectHandlerMap,
     fmOPN2PostEffectHandlerMap,
@@ -2741,7 +2770,7 @@ void DivEngine::registerSystems() {
       DivChanDef(_("Pulse 2"), "S2" , DIV_CH_PULSE, DIV_INS_NES),
       DivChanDef(_("Wave")   , "WA" , DIV_CH_WAVE , DIV_INS_NES),
       DivChanDef(_("Noise")  , "NO" , DIV_CH_NOISE, DIV_INS_NES),
-      DivChanDef(_("DPCM")   , "DMC", DIV_CH_PCM  , DIV_INS_NES, DIV_INS_AMIGA)
+      DivChanDef(_("DPCM")   , "DMC", DIV_CH_PCM  , DIV_INS_NES, DIV_INS_AMIGA, DIV_CHFLAG_NO_VOLUME)
     }),
     {
       {0x11, {DIV_CMD_NES_DMC, _("11xx: Write to delta modulation counter (0 to 7F)")}},

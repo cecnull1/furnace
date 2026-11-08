@@ -10,6 +10,8 @@
 
 constexpr uint64_t gen_min = 0;
 constexpr uint16_t gen_max      = 0xffff;
+constexpr uint16_t gen_min_s      = 0xff00;
+constexpr uint16_t gen_max_s      = 0x0100;
 constexpr uint16_t b14Bit_max      = 0x3fff;
 constexpr uint8_t  twoBit_max   = 0x03;
 constexpr uint8_t  threeBit_max = 0x07;
@@ -24,6 +26,17 @@ const std::array<std::string, 4> pitchTableMenu = {
     "Fixed",
     "Pitch",
     "Sample"
+};
+
+const std::array<std::string, 8> waveTableMenu = {
+    "Sine",
+    "Triangle",
+    "Pulse",
+    "Sawtooth",
+    "Noise",
+    "Wavetable PCM",
+    "Oneshot PCM",
+    "Loop PCM"
 };
 
 void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
@@ -81,68 +94,67 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
 
                 P(ImGui::Checkbox("REV", &cse1.op[i].rev));
 
-                P(ImGui::Checkbox("useSample", &cse1.op[i].useSample));
+                // P(ImGui::Checkbox("useSample", &cse1.op[i].useSample));
 
-                if (!cse1.op[i].useSample) {
-                    ImGui::SetNextItemWidth(-FLT_MIN);
-                    P(ImGui::SliderScalar(
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                P(ImGui::SliderScalar(
                     "##PHASE",
                     ImGuiDataType_S32,
                     &cse1.op[i].phase,
                     &gen_min, &big_max,
                     "PHASE: %d"
-                    ));
+                ));
 
-                    ImGui::SetNextItemWidth(-FLT_MIN);
-                    P(ImGui::SliderScalar(
-                    "##WAVE",
-                    ImGuiDataType_U8,
-                    &cse1.op[i].wave,
-                    &gen_min, &wave_max,
-                    "WAVE: %d"
-                    ));
-
-                    ImGui::SetNextItemWidth(-FLT_MIN);
-                    P(ImGui::SliderScalar(
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                P(ImGui::SliderScalar(
                     "##DUTY",
                     ImGuiDataType_U16,
                     &cse1.op[i].duty,
                     &gen_min, &gen_max,
                     "DUTY: %d"
-                    ));
-                } else {
-                    ImGui::SetNextItemWidth(-FLT_MIN);
-                    P(ImGui::SliderScalar(
-                    "##SMMODE",
-                    ImGuiDataType_U8,
-                    &cse1.op[i].wave,
-                    &wave_sample_mode_min, &wave_sample_mode_max,
-                    "SMMODE: %d"
-                    ));
+                ));
 
-                    String sName;
-                    if (cse1.op[i].sample_tables.sampleIndex >= e->song.sampleLen) {
-                        sName = _("none selected");
-                    } else {
-                        sName = e->song.sample[cse1.op[i].sample_tables.sampleIndex]->name;
-                    }
+                const String& wName = waveTableMenu[cse1.op[i].wave&0x7];
 
-                    ImGui::AlignTextToFramePadding();
-                    ImGui::Text(_("Sample"));
-                    ImGui::SameLine();
-                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-                    if (ImGui::BeginCombo("##CSESample", sName.c_str())) {
-                        String id;
-                        for (int s = 0; s < e->song.sampleLen; s++) {
-                            id = fmt::sprintf("%d: %s", s, e->song.sample[s]->name);
-                            if (ImGui::Selectable(id.c_str(), cse1.op[i].sample_tables.sampleIndex == s)) {
-                                PARAMETER;
-                                cse1.op[i].sample_tables.sampleIndex = s;
-                            }
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text(_("WAVE"));
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                if (ImGui::BeginCombo("##Wave", wName.c_str())) {
+                    String id;
+                    for (size_t w = 0; w < waveTableMenu.size(); w++) {
+                        id = fmt::sprintf("%d: %s", w, waveTableMenu[w]);
+                        if (ImGui::Selectable(id.c_str(), cse1.op[i].wave == w)) {
+                            PARAMETER;
+                            cse1.op[i].wave = w;
                         }
-                        ImGui::EndCombo();
                     }
+                    ImGui::EndCombo();
                 }
+
+                String sName;
+                if (cse1.op[i].sample_tables.sampleIndex >= e->song.sampleLen) {
+                    sName = _("none selected");
+                } else {
+                    sName = e->song.sample[cse1.op[i].sample_tables.sampleIndex]->name;
+                }
+
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text(_("Sample"));
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                if (ImGui::BeginCombo("##CSESample", sName.c_str())) {
+                    String id;
+                    for (int s = 0; s < e->song.sampleLen; s++) {
+                        id = fmt::sprintf("%d: %s", s, e->song.sample[s]->name);
+                        if (ImGui::Selectable(id.c_str(), cse1.op[i].sample_tables.sampleIndex == s)) {
+                            PARAMETER;
+                            cse1.op[i].sample_tables.sampleIndex = s;
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
+
 
                 ImGui::TableNextColumn();
                 ImGui::NewLine();
@@ -214,7 +226,7 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
                 "##AR",
                 ImGuiDataType_U16,
                 &cse1.op[i].adsr.ar,
-                &gen_min, &gen_max,
+                cse1.op[i].adsr.ar <= gen_min_s ? reinterpret_cast<const uint16_t*>(&gen_min) : &gen_min_s, &gen_max,
                 "A: %d"
                 ));
 
@@ -223,7 +235,7 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
                 "##DR",
                 ImGuiDataType_U16,
                 &cse1.op[i].adsr.dr,
-                &gen_min, &gen_max,
+                cse1.op[i].adsr.dr <= gen_min_s ? reinterpret_cast<const uint16_t*>(&gen_min) : &gen_min_s, &gen_max,
                 "D: %d"
                 ));
 
@@ -232,7 +244,7 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
                 "##SR",
                 ImGuiDataType_U16,
                 &cse1.op[i].adsr.sr,
-                &gen_min, &gen_max,
+                cse1.op[i].adsr.sr <= gen_min_s ? reinterpret_cast<const uint16_t*>(&gen_min) : &gen_min_s, &gen_max,
                 "D2: %d"
                 ));
 
@@ -250,7 +262,7 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
                 "##RR",
                 ImGuiDataType_U16,
                 &cse1.op[i].adsr.rr,
-                &gen_min, &gen_max,
+                cse1.op[i].adsr.rr <= gen_min_s ? reinterpret_cast<const uint16_t*>(&gen_min) : &gen_min_s, &gen_max,
                 "R: %d"
                 ));
 
@@ -259,7 +271,7 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
                 "##EDIV",
                 ImGuiDataType_U16,
                 &cse1.op[i].env_divider,
-                &gen_min, &b14Bit_max,
+                &gen_min,  cse1.op[i].env_divider >= gen_max_s ? &b14Bit_max : &gen_max_s,
                 "EDIV: %d"
                 ));
 
@@ -423,6 +435,19 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
         ImGui::EndTabItem();
     }
 
+    for (int i = 0; i < CSE1_FILTER_NUMBER; i++) {
+        if (ImGui::BeginTabItem(_(fmt::format("Filter {0}", i+1).c_str()))) {
+            macroList.push_back(FurnaceGUIMacroDesc(_("Out L"),&ins->std.opMacros[i].amMacro,0,65535,160,uiColors[GUI_COLOR_MACRO_OTHER]));
+            macroList.push_back(FurnaceGUIMacroDesc(_("Out R"),&ins->std.opMacros[i].vibMacro,0,65535,160,uiColors[GUI_COLOR_MACRO_OTHER]));
+            macroList.push_back(FurnaceGUIMacroDesc(_("Cutoff"),&ins->std.opMacros[i].drMacro,0,65535,160,uiColors[GUI_COLOR_MACRO_FILTER]));
+            macroList.push_back(FurnaceGUIMacroDesc(_("Res"),&ins->std.opMacros[i].d2rMacro,0,255,160,uiColors[GUI_COLOR_MACRO_FILTER]));
+            macroList.push_back(FurnaceGUIMacroDesc(_("Types"),&ins->std.opMacros[i].wsMacro,0,3,80,uiColors[GUI_COLOR_MACRO_FILTER],false,nullptr,nullptr,true));
+            macroList.push_back(FurnaceGUIMacroDesc(_("Inputs"),&ins->std.opMacros[i].tlMacro,0,4,80,uiColors[GUI_COLOR_MACRO_FILTER],false,nullptr,nullptr,true));
+            drawMacros(macroList,macroEditStateMacros,ins);
+            ImGui::EndTabItem();
+        }
+    }
+
     if (ImGui::BeginTabItem(_("Macros"))) {
         macroList.push_back(FurnaceGUIMacroDesc(_("Volume"),&ins->std.volMacro,0,65535,160,uiColors[GUI_COLOR_MACRO_VOLUME]));
         macroList.push_back(FurnaceGUIMacroDesc(_("Arpeggio"),&ins->std.arpMacro,-120,120,160,uiColors[GUI_COLOR_MACRO_PITCH],true,NULL,macroHoverNote,false,NULL,true,ins->std.arpMacro.val));
@@ -435,11 +460,8 @@ void FurnaceGUI::drawInsCSE1(DivInstrument *ins) {
         ImGui::EndTabItem();
     }
 
-    for (int i = 0; i < CSE1_OPER_NUMBER; i++) {
-    }
-
     if (ImGui::BeginTabItem("About")) {
-        ImGui::Text("Soft Core Version: Beta 0.1.1");
+        ImGui::Text("Soft Core Version: Beta 0.2.0");
         ImGui::Text("Name: Cecnull1 Sound Engine 1");
         ImGui::Text("Or  : Audio Cecnull1 Engine 1");
         ImGui::Text("Author: Cecnull1");

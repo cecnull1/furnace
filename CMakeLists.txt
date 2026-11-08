@@ -38,7 +38,7 @@ read the \"developer info\" section of README.md for more information.")
 endif()
 
 if (ANDROID)
-  set(USE_RTMIDI_DEFAULT OFF)
+  set(USE_RTMIDI_DEFAULT ON)
   set(WITH_PORTAUDIO_DEFAULT OFF)
   set(USE_BACKWARD_DEFAULT OFF)
   find_library(TERMUX rt)
@@ -412,6 +412,7 @@ if (USE_RTMIDI)
     list(APPEND DEPENDENCIES_LEGACY_LDFLAGS ${RTMIDI_LDFLAGS})
     message(STATUS "Using system-installed RtMidi")
   else()
+    set(RTMIDI_BUILD_TESTING OFF CACHE BOOL "aaaaaa" FORCE)
     add_subdirectory(extern/rtmidi EXCLUDE_FROM_ALL)
     list(APPEND DEPENDENCIES_LIBRARIES rtmidi)
     message(STATUS "Using vendored RtMidi")
@@ -435,6 +436,7 @@ else()
   set(ENABLE_EXTERNAL_LIBS OFF CACHE BOOL "come on" FORCE)
   set(ENABLE_MPEG OFF CACHE BOOL "come on" FORCE)
   set(ZLIB_BUILD_EXAMPLES OFF CACHE BOOL "come on" FORCE)
+  set(ZLIB_BUILD_TESTING OFF CACHE BOOL "aaaaaa" FORCE)
   add_subdirectory(extern/zlib EXCLUDE_FROM_ALL)
   list(APPEND DEPENDENCIES_INCLUDE_DIRS extern/zlib ${CMAKE_CURRENT_BINARY_DIR}/extern/zlib)
   list(APPEND DEPENDENCIES_LIBRARIES zlibstatic)
@@ -970,6 +972,8 @@ src/engine/export/grub.cpp
 
 src/engine/effect/abstract.cpp
 src/engine/effect/dummy.cpp
+        src/engine/platform/sound/cse1/cmsu1.cpp
+        src/engine/platform/sound/cse1/cmsu1.h
 )
 
 if (ORIG_NDS_CORE)

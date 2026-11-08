@@ -280,6 +280,7 @@ const char* chanNames[CHANNEL_TYPE_MAX+1]={
   _N("Slope"), // PowerNoise
   _N("Wave"), // not wavetable (VERA, 5E01)
   _N("PSG"),
+  _N("Timer"), // CSM, SAA1099
 
   _N("Channel"), // if neither
   _N("Channels") // in case this makes l10n easier
@@ -622,6 +623,8 @@ const FurnaceGUIActionDef guiActions[GUI_ACTION_MAX]={
   D("INS_DOWN", _N("Next instrument"), FURKMOD_SHIFT|SDLK_KP_MULTIPLY),
   D("STEP_UP", _N("Increase edit step"), FURKMOD_CMD|SDLK_KP_MULTIPLY),
   D("STEP_DOWN", _N("Decrease edit step"), FURKMOD_CMD|SDLK_KP_DIVIDE),
+  D("STEP_UP_COARSE", _N("Increase coarse edit step"), 0),
+  D("STEP_DOWN_COARSE", _N("Decrease coarse edit step"), 0),
   D("TOGGLE_EDIT", _N("Toggle edit mode"), SDLK_SPACE),
   D("METRONOME", _N("Metronome"), FURKMOD_CMD|SDLK_m),
   D("ORDER_LOCK", _N("Toggle order lock"), 0),
@@ -1134,6 +1137,7 @@ const FurnaceGUIColorDef guiColors[GUI_COLOR_MAX]={
   D(GUI_COLOR_CHANNEL_WAVE,_N("Wave"),ImVec4(1.0f,0.5f,0.2f,1.0f)),
   D(GUI_COLOR_CHANNEL_PCM,_N("PCM"),ImVec4(1.0f,0.9f,0.2f,1.0f)),
   D(GUI_COLOR_CHANNEL_OP,_N("FM operator"),ImVec4(0.2f,0.4f,1.0f,1.0f)),
+  D(GUI_COLOR_CHANNEL_TIMER,_N("Timer"),ImVec4(0.6f,0.4f,1.0f,1.0f)),
   D(GUI_COLOR_CHANNEL_MUTED,_N("Muted"),ImVec4(0.5f,0.5f,0.5f,1.0f)),
 
   D(GUI_COLOR_PATTERN_BG,_N("Pattern background"),ImVec4(0.0f,0.0f,0.0f,0.0f)),
@@ -1337,6 +1341,7 @@ const int availableSystems[]={
   DIV_SYSTEM_OPL3_DRUMS,
   DIV_SYSTEM_OPZ,
   DIV_SYSTEM_TIA,
+  DIV_SYSTEM_SAA1099_NEW,
   DIV_SYSTEM_SAA1099,
   DIV_SYSTEM_AY8930,
   DIV_SYSTEM_POKEY,
@@ -1442,6 +1447,7 @@ const int chipsSquare[]={
   DIV_SYSTEM_AY8910,
   DIV_SYSTEM_PCSPKR,
   DIV_SYSTEM_POKEMINI,
+  DIV_SYSTEM_SAA1099_NEW,
   DIV_SYSTEM_SAA1099,
   DIV_SYSTEM_VIC20,
   DIV_SYSTEM_MSM5232,

@@ -63,10 +63,10 @@ class DivWorkPool;
 // we're not reaching 1.0 until we have export for all major systems.
 //
 // development/interim versions go by the format version, prepended with "dev".
-#define DIV_VERSION "dev256"
+#define DIV_VERSION "dev258"
 // format version.
 // this shall be bumped on each file format/breaking change.
-#define DIV_ENGINE_VERSION 256
+#define DIV_ENGINE_VERSION 258
 // for imports
 #define DIV_VERSION_MOD 0xff01
 #define DIV_VERSION_FC 0xff02
@@ -1663,6 +1663,9 @@ class DivEngine {
     // - 4: PCM
     // - 5: FM operator
     int getChannelType(int ch);
+
+    // get channel flags
+    unsigned int getChannelFlags(int ch);
 
     // get preferred instrument type
     DivInstrumentType getPreferInsType(int ch);

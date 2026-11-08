@@ -2,6 +2,7 @@
 #define CSE1_H_PLATFORM_CSE1
 
 #include "../dispatch.h"
+#include "sound/cse1/cmsu1.h"
 #include "sound/cse1/cse1.hpp"
 
 class DivPlatformCSE1 : public DivDispatch {
@@ -28,6 +29,8 @@ class DivPlatformCSE1 : public DivDispatch {
     bool isMuted[CSE1_CHANNEL_NUMBER];
     unsigned char chans;
     CSE1_PACKED::CSE1 chip;
+    CMSU1_PACKED::CMSU1_MIXER mixer_left;
+    CMSU1_PACKED::CMSU1_MIXER mixer_right;
     CSE1_PACKED::CSE1_CONFIG_AND_TABLE waveTable;
     DivMemoryComposition memCompo;
     CSE1_PACKED::CSE1_REG* pcmMem;
@@ -35,11 +38,18 @@ class DivPlatformCSE1 : public DivDispatch {
     bool* sampleLoaded;
     size_t sampleMemLen;
     int sysIDCache;
+    int oldVolume[2];
+    int newVolume[2];
+    bool oldMixer;
+    bool amigaVolumeLike;
 
     friend void putDispatchChip(void*,int);
     friend void putDispatchChan(void*,int,int);
 public:
     void acquire(short** buf, size_t len) override;
+    void acquireDirect(blip_buffer_t **bb, size_t len) override;
+    bool hasAcquireDirect() override;
+    bool hasSoftPan(int ch) override;
     int getOutputCount() override;
     void muteChannel(int ch, bool mute) override;
     int dispatch(DivCommand c) override;
@@ -79,6 +89,8 @@ public:
     void tick(bool sysTick=true) override;
     int init(DivEngine* parent, int channels, int sugRate, const DivConfig& flags) override;
     void quit() override;
+
+    DivPlatformCSE1();
     ~DivPlatformCSE1() override;
 };
 #endif // CSE1_H_PLATFORM_CSE1

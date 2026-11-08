@@ -410,6 +410,7 @@ enum FurnaceGUIColors {
   GUI_COLOR_CHANNEL_WAVE,
   GUI_COLOR_CHANNEL_PCM,
   GUI_COLOR_CHANNEL_OP,
+  GUI_COLOR_CHANNEL_TIMER,
   GUI_COLOR_CHANNEL_MUTED,
 
   GUI_COLOR_PATTERN_BG,
@@ -817,6 +818,8 @@ enum FurnaceGUIActions {
   GUI_ACTION_INS_DOWN,
   GUI_ACTION_STEP_UP,
   GUI_ACTION_STEP_DOWN,
+  GUI_ACTION_STEP_UP_COARSE,
+  GUI_ACTION_STEP_DOWN_COARSE,
   GUI_ACTION_TOGGLE_EDIT,
   GUI_ACTION_METRONOME,
   GUI_ACTION_ORDER_LOCK,
@@ -1517,12 +1520,12 @@ struct FurnaceGUIMacroDesc {
   const char* modeName;
   ImVec4 color;
   bool isBitfield, blockMode, bit30;
-  String (*hoverFunc)(int,float,void*);
+  void (*hoverFunc)(int,float,void*);
   void* hoverFuncUser;
   bool isArp;
   bool isPitch;
 
-  FurnaceGUIMacroDesc(const char* name, DivInstrumentMacro* m, int macroMin, int macroMax, float macroHeight, ImVec4 col=ImVec4(1.0f,1.0f,1.0f,1.0f), bool block=false, const char* mName=NULL, String (*hf)(int,float,void*)=NULL, bool bitfield=false, const char** bfVal=NULL, bool bit30Special=false, void* hfu=NULL, bool isArp=false, bool isPitch=false):
+  FurnaceGUIMacroDesc(const char* name, DivInstrumentMacro* m, int macroMin, int macroMax, float macroHeight, ImVec4 col=ImVec4(1.0f,1.0f,1.0f,1.0f), bool block=false, const char* mName=NULL, void (*hf)(int,float,void*)=NULL, bool bitfield=false, const char** bfVal=NULL, bool bit30Special=false, void* hfu=NULL, bool isArp=false, bool isPitch=false):
     ins(NULL),
     macro(m),
     height(macroHeight),
@@ -2611,7 +2614,7 @@ class FurnaceGUI {
   std::atomic<FurnaceGUIWindows> curWindowThreadSafe;
   std::atomic<bool> failedNoteOn;
   float peak[DIV_MAX_OUTPUTS];
-  float patChanX[DIV_MAX_CHANS+1];
+  float* patChanX;
   float patChanSlideY[DIV_MAX_CHANS+1];
   float patLineHeight;
   float lastPatternWidth, longThreshold;
@@ -3592,6 +3595,7 @@ class FurnaceGUI {
   void doExpand(int multiplier, const SelectionPoint& sStart, const SelectionPoint& sEnd);
   void doCollapseSong(int divider);
   void doExpandSong(int multiplier);
+  void doCollapseChannel(int ch);
   void doAbsorbInstrument();
   void doUndo();
   void doRedo();
