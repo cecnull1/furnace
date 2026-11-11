@@ -946,6 +946,8 @@ src/engine/effect/abstract.cpp
 src/engine/effect/dummy.cpp
         src/engine/platform/sound/cse1/cmsu1.cpp
         src/engine/platform/sound/cse1/cmsu1.h
+        src/engine/platform/sound/ctasis/ctasis.c
+        src/engine/platform/sound/ctasis/ctasis.h
 )
 
 if (ORIG_NDS_CORE)

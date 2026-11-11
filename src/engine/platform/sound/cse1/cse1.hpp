@@ -2,8 +2,8 @@
 // Created by Administrator on 2026/9/12.
 //
 
-#ifndef FURNACE_CSE1_H
-#define FURNACE_CSE1_H
+#ifndef COM_GITHUB_CECNULL1_CSE1_H
+#define COM_GITHUB_CECNULL1_CSE1_H
 
 #include <array>
 
@@ -274,4 +274,4 @@ namespace CSE1_PACKED {
 
 #undef CSE1_BIT_FIELD_MEMBER
 
-#endif //FURNACE_CSE1_H
+#endif //COM_GITHUB_CECNULL1_CSE1_H
