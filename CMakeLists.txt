@@ -931,10 +931,14 @@ src/engine/platform/sound/cse1/utils.h
         src/engine/platform/cse1.h
         src/engine/platform/cse1_sync_utils.cpp
         src/engine/platform/cse1_sync_utils.h
-        src/engine/platform/csmg1.cpp
-        src/engine/platform/csmg1.h
+        src/engine/platform/sound/cse1/cmsu1.cpp
+        src/engine/platform/sound/cse1/cmsu1.h
+        src/engine/platform/sound/ctasis/ctasis.c
+        src/engine/platform/sound/ctasis/ctasis.h
+        src/engine/platform/ctasis.cpp
+        src/engine/platform/ctasis.h
 
-src/engine/export/abstract.cpp
+        src/engine/export/abstract.cpp
 src/engine/export/amigaValidation.cpp
 src/engine/export/sapr.cpp
 src/engine/export/tiuna.cpp
@@ -944,10 +948,6 @@ src/engine/export/grub.cpp
 
 src/engine/effect/abstract.cpp
 src/engine/effect/dummy.cpp
-        src/engine/platform/sound/cse1/cmsu1.cpp
-        src/engine/platform/sound/cse1/cmsu1.h
-        src/engine/platform/sound/ctasis/ctasis.c
-        src/engine/platform/sound/ctasis/ctasis.h
 )
 
 if (ORIG_NDS_CORE)
